@@ -1,0 +1,61 @@
+# ----------------------------------------------------------------------
+# 1. SECURITY & SECRETS (CRITICAL)
+# ----------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.password
+*.secret
+*.key
+*.pem
+*.crt
+
+# Traefik SSL Certificates (Contains Private Keys!)
+acme.json
+traefik/acme.json
+
+# ----------------------------------------------------------------------
+# 2. PERSISTENT DATA (Do not commit your actual database)
+# ----------------------------------------------------------------------
+# Exclude all folders named 'data', 'db_data', 'mysql', etc.
+**/data/
+**/db_data/
+**/mysql/
+**/mariadb/
+**/redis/
+**/html/uploads/
+
+# Specific Service Data
+apps/ocis/ocis-data/
+apps/ocis/ocis-config/
+apps/roundcube/temp/
+apps/roundcube/logs/
+
+# ----------------------------------------------------------------------
+# 3. LOGS & TEMPORARY FILES
+# ----------------------------------------------------------------------
+*.log
+**/logs/
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# ----------------------------------------------------------------------
+# 4. OS & EDITOR CLUTTER
+# ----------------------------------------------------------------------
+# Mac
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# VS Code / JetBrains / Git
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace

@@ -1,0 +1,48 @@
+services:
+  adminer:
+    image: adminer
+    container_name: adminer
+    
+    # --- SECURITY HARDENING (New) ---
+    # Run as your standard user (1000:1000) instead of root
+    user: "${PUID}:${PGID}"
+    env_file:
+      - ../../.env
+    
+    # Drop ALL Linux capabilities (Adminer is just a PHP script, it needs nothing)
+    cap_drop:
+      - ALL
+    
+    # Prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+      
+    # --- NETWORKING ---
+    networks:
+      - traefik-public  # To be accessible via web
+      - internal-stack  # To talk to 'roundcube-db' and other DBs
+    
+    restart: unless-stopped
+    
+    environment:
+      ADMINER_DESIGN: "hydra"
+      
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.adminer.rule=Host(`${ADMINER_DOMAIN}`)"
+      - "traefik.http.routers.adminer.entrypoints=websecure"
+      - "traefik.http.routers.adminer.tls.certresolver=myresolver"
+      
+      # Security: HSTS, Anti-Bot Headers + Basic Auth Shield
+      - "traefik.http.routers.adminer.middlewares=sec-apps@file,dashboard-auth@docker"
+      
+      # Adminer listens on 8080 by default
+      - "traefik.http.services.adminer.loadbalancer.server.port=8080"
+
+networks:
+  traefik-public:
+    external: true
+  # Define the internal network so Adminer can join it
+  internal-stack:
+    external: true
+    name: internal-stack # This must match the network name in Roundcube's compose file

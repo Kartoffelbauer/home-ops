@@ -1,0 +1,64 @@
+services:
+  traefik:
+    image: traefik:v3
+    container_name: traefik
+    
+    user: "${PUID}:${PGID}"
+    env_file:
+      - ../../.env
+    
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    
+    security_opt:
+      - no-new-privileges:true
+      
+    ports:
+      - "80:80"
+      - "443:443"
+      
+    environment:
+      - TZ=${TZ}
+      
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./acme.json:/acme.json
+      - ./traefik_dynamic.yml:/traefik_dynamic.yml:ro
+      
+    command:
+      - "--log.level=INFO"
+      - "--api.dashboard=true"
+
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.file.filename=/traefik_dynamic.yml"
+      - "--providers.file.watch=true"
+
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.websecure.address=:443"
+      
+      - "--entrypoints.websecure.http.tls.certresolver=myresolver"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.myresolver.acme.storage=/acme.json"
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`${TRAEFIK_DASHBOARD_DOMAIN}`)"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      - "traefik.http.routers.traefik-dashboard.tls.certresolver=myresolver"
+      - "traefik.http.routers.traefik-dashboard.middlewares=sec-apps@file,dashboard-auth@docker"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_CREDENTIALS}"
+
+    networks:
+      - traefik-public
+    restart: unless-stopped
+
+networks:
+  traefik-public:
+    external: true
