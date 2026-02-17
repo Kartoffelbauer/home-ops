@@ -3,7 +3,9 @@ services:
     image: traefik:v3
     container_name: traefik
     
-    user: "${PUID}:${PGID}"
+    user: "${PUID}:${SOCKET_ID}"
+    restart: unless-stopped
+    
     env_file:
       - ../../.env
       - .env
@@ -49,7 +51,7 @@ services:
 
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.traefik-dashboard.rule=Host(`${DASHBOARD_DOMAIN}`)"
+      - "traefik.http.routers.traefik-dashboard.rule=${DASHBOARD_HOST_RULE}"
       - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
       - "traefik.http.routers.traefik-dashboard.service=api@internal"
       - "traefik.http.routers.traefik-dashboard.tls.certresolver=myresolver"
@@ -58,7 +60,6 @@ services:
 
     networks:
       - traefik-public
-    restart: unless-stopped
 
 networks:
   traefik-public:

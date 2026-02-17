@@ -1,0 +1,42 @@
+services:
+  website-aaronsoft:
+    image: nginxinc/nginx-unprivileged:alpine
+    container_name: website-aaronsoft
+
+    user: "${PUID}:${SOCKET_ID}"
+    restart: unless-stopped
+
+    env_file:
+      - ../../.env
+      - .env
+
+    cap_drop:
+      - ALL
+
+    security_opt:
+      - no-new-privileges:true
+
+    read_only: true
+
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+
+    volumes:
+      - ${WEB_CONTENT_PATH}:/usr/share/nginx/html:ro
+
+    networks:
+      - traefik-public
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web-aaronsoft.rule=${HOST_RULE}"
+      - "traefik.http.routers.web-aaronsoft.entrypoints=websecure"
+      - "traefik.http.routers.web-aaronsoft.tls.certresolver=myresolver"
+      - "traefik.http.routers.web-aaronsoft.middlewares=sec-base@file"
+      - "traefik.http.services.web-aaronsoft.loadbalancer.server.port=8080"
+
+networks:
+  traefik-public:
+    external: true
