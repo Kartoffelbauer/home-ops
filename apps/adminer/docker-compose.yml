@@ -3,7 +3,7 @@ services:
     image: adminer
     container_name: adminer
     
-    user: "${PUID}:${SOCKET_ID}"
+    user: "${PUID}:${GUID}"
     restart: unless-stopped
 
     env_file:
@@ -15,7 +15,13 @@ services:
     
     security_opt:
       - no-new-privileges:true
-      
+
+    read_only: true
+
+    tmpfs:
+      - /tmp
+      - /var/lib/php/sessions
+
     networks:
       - traefik-public
       - internal-stack

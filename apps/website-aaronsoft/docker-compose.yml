@@ -3,7 +3,7 @@ services:
     image: nginxinc/nginx-unprivileged:alpine
     container_name: website-aaronsoft
 
-    user: "${PUID}:${SOCKET_ID}"
+    user: "${PUID}:${GUID}"
     restart: unless-stopped
 
     env_file:
