@@ -1,0 +1,4 @@
+include:
+  - core/traefik/docker-compose.yml
+  - apps/adminer/docker-compose.yml
+  # Add other apps here as you build them
