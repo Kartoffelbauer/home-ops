@@ -6,6 +6,7 @@ services:
     user: "${PUID}:${PGID}"
     env_file:
       - ../../.env
+      - .env
     
     cap_drop:
       - ALL
@@ -48,12 +49,12 @@ services:
 
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.traefik-dashboard.rule=Host(`${TRAEFIK_DASHBOARD_DOMAIN}`)"
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`${DASHBOARD_DOMAIN}`)"
       - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
       - "traefik.http.routers.traefik-dashboard.service=api@internal"
       - "traefik.http.routers.traefik-dashboard.tls.certresolver=myresolver"
       - "traefik.http.routers.traefik-dashboard.middlewares=sec-apps@file,dashboard-auth@docker"
-      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_CREDENTIALS}"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${DASHBOARD_CREDENTIALS}"
 
     networks:
       - traefik-public
