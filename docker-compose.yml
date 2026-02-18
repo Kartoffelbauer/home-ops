@@ -1,6 +1,28 @@
+name: home-ops
+
+# Apps
 include:
   - core/traefik/docker-compose.yml
+  - core/sftpgo/docker-compose.yml
   - apps/adminer/docker-compose.yml
   - apps/website-aaronsoft/docker-compose.yml
   - apps/website-get-orga-niced/docker-compose.yml
-  # Add other apps here as you build them
+
+networks:
+  # Public traffic (Traefik <-> Apps)
+  traefik-public:
+    name: traefik-public
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+  # Secured Socket (Traefik <-> Socket Proxy)
+  socket-internal:
+    name: socket-internal
+    internal: true
+
+  # Database traffic (Apps <-> DBs) - Not exposed to Traefik
+  db-internal:
+    name: db-internal
+    internal: true

@@ -1,55 +1,56 @@
 http:
   middlewares:
     # -------------------------------------------------------------------------------------------------
-    # 1. BASE SECURITY
-    # Use this for: Public Websites
+    # 1. SECURITY MODULES
     # -------------------------------------------------------------------------------------------------
-    sec-base:
+    
+    # Rate Limiting (DoS Protection)
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+
+    # Base Security Headers (HSTS, Anti-Sniffing)
+    sec-headers:
       headers:
-        # HSTS (Strict-Transport-Security)
         stsSeconds: 63072000
         stsIncludeSubdomains: true
         stsPreload: true
         forceSTSHeader: true
-        
-        # Anti-Sniffing (X-Content-Type-Options)
         contentTypeNosniff: true
-        
-        # Clickjacking Protection (X-Frame-Options)
         frameDeny: true
         customFrameOptionsValue: "SAMEORIGIN"
-        
-        # Referrer Policy
         referrerPolicy: "strict-origin-when-cross-origin"
-        
-        # Cross-Site Scripting (X-XSS-Protection)
-        # Modern standard is "0" to disable buggy browser filters, as you had in your config.
         customResponseHeaders:
           X-XSS-Protection: "0"
 
-    # -------------------------------------------------------------------------------------------------
-    # 2. APP SECURITY
-    # Use this for: Adminer, Roundcube, OCIS
-    # -------------------------------------------------------------------------------------------------
-    sec-apps:
-      chain:
-        middlewares:
-          - sec-base       # Inherit all base rules
-          - sec-apps-extra # Add strict rules
-
-    sec-apps-extra:
+    # Strict App Headers (No Robots, No Downloads)
+    sec-strict-headers:
       headers:
         customResponseHeaders:
-          # Hide from Search Engines
           X-Robots-Tag: "none"
-          # Prevent file downloads from running automatically
           X-Download-Options: "noopen"
-          # Flash/Adobe security
           X-Permitted-Cross-Domain-Policies: "none"
 
-# -------------------------------------------------------------------------------------------------
-# 3. SSL HARDENING
-# -------------------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------------
+    # 2. MIDDLEWARE CHAINS
+    # -------------------------------------------------------------------------------------------------
+    
+    # Use for: Public Websites (e.g., aaronsoft.de)
+    sec-public:
+      chain:
+        middlewares:
+          - rate-limit
+          - sec-headers
+
+    # Use for: Internal Tools (e.g., Adminer, Traefik Dashboard)
+    sec-admin:
+      chain:
+        middlewares:
+          - rate-limit
+          - sec-headers
+          - sec-strict-headers
+
 tls:
   options:
     default:

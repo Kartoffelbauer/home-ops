@@ -2,46 +2,45 @@ services:
   adminer:
     image: adminer
     container_name: adminer
-    
     user: "${PUID}:${GUID}"
     restart: unless-stopped
 
     env_file:
       - ../../.env
       - .env
-    
-    cap_drop:
-      - ALL
-    
-    security_opt:
-      - no-new-privileges:true
 
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
     read_only: true
-
     tmpfs:
       - /tmp
       - /var/lib/php/sessions
 
-    networks:
-      - traefik-public
-      - internal-stack
-    
     environment:
       - TZ=${TZ}
       - ADMINER_DESIGN=hydra
-      
+
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.adminer.rule=${HOST_RULE}"
       - "traefik.http.routers.adminer.entrypoints=websecure"
       - "traefik.http.routers.adminer.tls.certresolver=myresolver"
-      - "traefik.http.routers.adminer.middlewares=sec-apps@file,dashboard-auth@docker"
+      # Updated middleware to 'sec-admin'
+      - "traefik.http.routers.adminer.middlewares=sec-admin@file,dashboard-auth@docker"
       - "traefik.http.services.adminer.loadbalancer.server.port=8080"
+
+    networks:
+      - traefik-public
+      - db-internal  # Connects to your future databases
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 networks:
   traefik-public:
     external: true
-
-  #internal-stack:
-    #external: true
-    #name: internal-stack
+  db-internal:
+    external: true
