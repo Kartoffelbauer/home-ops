@@ -1,32 +1,81 @@
-# HOME-OPS 🚀
+# Home-Ops 🏠
 
-A modern, containerized Home-Ops stack designed for **Raspberry Pi**. This project migrates a legacy bare-metal setup into a hardened Docker infrastructure using **Traefik v3** as a reverse proxy, SSL termination, and security gateway.
-
-## 🏗️ Architecture
-The setup follows a "Secure-by-Design" principle:
-* **Gateway:** Traefik v3 (running as a non-root user with minimal capabilities).
-* **Security:** Centralized HSTS, Anti-Sniffing, and Anti-Indexing headers via Traefik Middleware.
-* **Network Isolation:** Public-facing apps use `traefik-public`, while backend communication (databases/cache) is isolated within `internal-stack`.
-* **Hardening:** Containers use `no-new-privileges` and specific `PUID/PGID` mapping.
-
-
-
----
+A modular, secure, and "clean-code" Docker stack for self-hosting applications and static websites. This project uses **Traefik** as a reverse proxy with automatic SSL and **SFTPGo** as a centralized file management gateway.
 
 ## 📂 Project Structure
+
 ```text
-home-ops
-├── apps
-│   ├── adminer                   # Database Management
-│   ├── ocis                      # ownCloud Infinite Scale
-│   ├── roundcube                 # Webmail client
-│   ├── website-aaronsoft         # Static HTML Site
-│   └── website-get-orga-niced    # Static HTML Site
-├── core
-│   └── traefik
-│       ├── acme.json             # SSL Certificates (Stored securely)
-│       ├── docker-compose.yml    # Traefik Infrastructure
-│       └── traefik_dynamic.yml   # Security Headers & SSL Hardening
-├── .env                          # Central Configuration (Secrets & IDs)
-├── .gitignore                    # Prevents leaking secrets/data
-└── LICENSE
+home-ops/
+├── apps/                  # Application stacks (Websites, Adminer, etc.)
+├── core/                  # Infrastructure (Traefik, SFTPGo)
+├── docker-compose.yml     # Master compose file (includes sub-files)
+└── .env                   # Global configuration
+```
+
+## 🚀 Prerequisites
+
+* Docker & Docker Compose
+* `apache2-utils` (to generate password hashes)
+
+## 🛠️ Setup & Installation
+
+### 1. Global Configuration
+Create the master environment file from the example.
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and configure the following:
+* **PUID/GUID**: Your personal User ID and Group ID (usually `1000`).
+* **SOCKET_GID**: The group ID of the docker group (`getent group docker | cut -d: -f3`).
+* **ACME_EMAIL**: Your email address for Let's Encrypt notifications.
+
+### 2. Service Configuration
+You must create `.env` files for Traefik and your apps.
+
+**Traefik:**
+```bash
+cd core/traefik
+cp .env.example .env
+# Edit .env: Set DASHBOARD_HOST_RULE and DASHBOARD_CREDENTIALS
+```
+*Note: Generate credentials with `htpasswd -nb user password`. Double the `$$` signs in the hash.*
+
+**Apps & Websites:**
+Navigate to each app in `apps/` (e.g., `apps/website-aaronsoft`) and create their `.env` files to define their domains (`HOST_RULE`).
+
+### 3. SSL Storage
+Create the file for SSL certificates and secure it.
+
+```bash
+touch core/traefik/acme.json
+chmod 600 core/traefik/acme.json
+```
+
+### 4. Start the Stack
+From the root `home-ops` directory:
+
+```bash
+docker compose up -d
+```
+
+## 🔐 Security Features
+
+This stack is hardened by default:
+* **Read-Only Containers**: Apps run with read-only filesystems.
+* **Least Privilege**: Apps run as non-root users (`PUID:GUID`) with capabilities dropped (`cap_drop: ALL`).
+* **Traefik Middlewares**:
+    * `sec-base`: Strict headers (HSTS, Anti-Sniffing) for public sites.
+    * `sec-apps`: Adds robot blocking and stricter rules for internal tools (Adminer).
+    * `dashboard-auth`: Basic Auth protection.
+
+## 📂 SFTP File Management
+
+A centralized SFTP gateway runs on **Port 2222**.
+
+* **Host**: `your-server-ip`
+* **Port**: `2222`
+* **Users**: Defined in `core/sftpgo/users.json`.
+
+To add new SFTP users or websites, edit `core/sftpgo/users.json` and map the new volumes in `core/sftpgo/docker-compose.yml`.
