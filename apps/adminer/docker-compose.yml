@@ -11,7 +11,7 @@ services:
 
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
-    read_only: true
+
     tmpfs:
       - /tmp
       - /var/lib/php/sessions
@@ -25,7 +25,6 @@ services:
       - "traefik.http.routers.adminer.rule=${HOST_RULE}"
       - "traefik.http.routers.adminer.entrypoints=websecure"
       - "traefik.http.routers.adminer.tls.certresolver=myresolver"
-      # Updated middleware to 'sec-admin'
       - "traefik.http.routers.adminer.middlewares=sec-admin@file,dashboard-auth@docker"
       - "traefik.http.services.adminer.loadbalancer.server.port=8080"
 
