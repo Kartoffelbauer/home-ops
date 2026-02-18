@@ -1,0 +1,39 @@
+services:
+  sftpgo:
+    image: drakkan/sftpgo:v2-alpine
+    container_name: sftpgo-gateway
+    
+    user: "${PUID}:${GUID}"
+    restart: unless-stopped
+    
+    env_file:
+      - ../../.env
+    
+    cap_drop:
+      - ALL
+    
+    security_opt:
+      - no-new-privileges:true
+      
+    read_only: true
+    
+    tmpfs:
+      - /tmp
+      - /var/cache/sftpgo 
+    
+    environment:
+      - SFTPGO_LOADDATA_FROM=/etc/sftpgo/users.json
+      - SFTPGO_SFTPD__BINDINGS__0__PORT=2022
+      - SFTPGO_HTTPD__BINDINGS__0__PORT=0 
+      - SFTPGO_SFTPD__HOST_KEYS__0=/var/lib/sftpgo/id_rsa
+      - SFTPGO_SFTPD__HOST_KEYS__1=/var/lib/sftpgo/id_ecdsa
+      - SFTPGO_SFTPD__HOST_KEYS__2=/var/lib/sftpgo/id_ed25519
+      
+    ports:
+      - "2222:2022"
+      
+    volumes:
+      - ./users.json:/etc/sftpgo/users.json:ro
+      - ./data:/var/lib/sftpgo
+      - ../../apps/website-aaronsoft/html:/srv/sftp/aaronsoft:rw
+      - ../../apps/website-get-orga-niced/html:/srv/sftp/get-orga-niced:rw

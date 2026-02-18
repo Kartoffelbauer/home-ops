@@ -42,6 +42,6 @@ networks:
   traefik-public:
     external: true
 
-  internal-stack:
-    external: true
-    name: internal-stack
+  #internal-stack:
+    #external: true
+    #name: internal-stack
