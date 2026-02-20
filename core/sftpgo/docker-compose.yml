@@ -23,6 +23,7 @@ services:
     
     environment:
       - SFTPGO_LOADDATA_FROM=/etc/sftpgo/users.json
+      - SFTPGO_LOADDATA_MODE=1 # 1 = Overwrite existing users from file
       - SFTPGO_SFTPD__BINDINGS__0__PORT=2022
       - SFTPGO_HTTPD__BINDINGS__0__PORT=0 
       - SFTPGO_SFTPD__HOST_KEYS__0=/var/lib/sftpgo/id_rsa

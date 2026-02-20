@@ -1,20 +1,22 @@
-[
-  {
-    "username": "www-aaronsoft",
-    "password": "password_for_site", 
-    "home_dir": "/srv/sftp/aaronsoft", 
-    "uid": 1000, "gid": 1000,
-    "permissions": { "/": ["*"] },
-    "quota_size": 524288000, 
-    "quota_files": 0
-  },
-  {
-    "username": "www-get-orga-niced",
-    "password": "password_for_site", 
-    "home_dir": "/srv/sftp/get-orga-niced", 
-    "uid": 1000, "gid": 1000,
-    "permissions": { "/": ["*"] },
-    "quota_size": 524288000, 
-    "quota_files": 0
-  }
-]
+{
+  "users": [
+    {
+      "username": "www-aaronsoft",
+      "password": "REPLACE_WITH_YOUR_GENERATED_HASH",
+      "home_dir": "/srv/sftp/aaronsoft",
+      "uid": 1000, "gid": 1000,
+      "permissions": { "/": ["*"] },
+      "quota_size": 524288000,
+      "quota_files": 0
+    },
+    {
+      "username": "www-get-orga-niced",
+      "password": "REPLACE_WITH_YOUR_GENERATED_HASH",
+      "home_dir": "/srv/sftp/get-orga-niced",
+      "uid": 1000, "gid": 1000,
+      "permissions": { "/": ["*"] },
+      "quota_size": 524288000,
+      "quota_files": 0
+    }
+  ]
+}
