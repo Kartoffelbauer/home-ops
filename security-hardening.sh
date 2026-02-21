@@ -23,7 +23,7 @@ echo "   ✅ .env files secured (600)"
 # Note: While Docker Init containers fix these at runtime, we lock them down
 # here to ensure they are secure "at rest" on the host filesystem.
 SENSITIVE_FILES=(
-    "core/traefik/acme.json"
+    "core/traefik/data/acme.json"
     "core/traefik/traefik_dynamic.yml"
     "core/sftpgo/users.json"
 )
