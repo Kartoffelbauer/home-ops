@@ -3,9 +3,10 @@ services:
   init-sftpgo:
     image: busybox:1.36
     container_name: init-sftpgo
-    command: sh -c "chown ${PUID}:${GUID} /etc/sftpgo/users.json && chmod 600 /etc/sftpgo/users.json"
+    command: sh -c "chown ${PUID}:${GUID} /etc/sftpgo/users.json && chmod 600 /etc/sftpgo/users.json && chown -R ${PUID}:${GUID} /var/lib/sftpgo"
     volumes:
       - ./users.json:/etc/sftpgo/users.json
+      - ./data:/var/lib/sftpgo
     network_mode: none
     read_only: true
     cap_drop:
@@ -50,6 +51,8 @@ services:
       - SFTPGO_SFTPD__HOST_KEYS__1=/var/lib/sftpgo/id_ecdsa
       - SFTPGO_SFTPD__HOST_KEYS__2=/var/lib/sftpgo/id_ed25519
       
+    network_mode: bridge
+
     ports:
       - "2222:2022"
       

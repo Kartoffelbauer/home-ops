@@ -25,8 +25,9 @@ services:
       - "traefik.http.routers.adminer.rule=${HOST_RULE}"
       - "traefik.http.routers.adminer.entrypoints=websecure"
       - "traefik.http.routers.adminer.tls.certresolver=myresolver"
-      - "traefik.http.routers.adminer.middlewares=sec-admin@file,dashboard-auth@docker"
+      - "traefik.http.routers.adminer.middlewares=sec-admin@file"
       - "traefik.http.services.adminer.loadbalancer.server.port=8080"
+      - "traefik.docker.network=traefik-public"
 
     networks:
       - traefik-public

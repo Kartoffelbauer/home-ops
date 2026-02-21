@@ -13,9 +13,6 @@ networks:
   traefik-public:
     name: traefik-public
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/24
 
   # Secured Socket (Traefik <-> Socket Proxy)
   socket-internal:

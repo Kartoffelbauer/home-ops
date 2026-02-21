@@ -106,8 +106,9 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.dashboard.rule=${DASHBOARD_HOST_RULE}"
       - "traefik.http.routers.dashboard.service=api@internal"
-      - "traefik.http.routers.dashboard.middlewares=sec-admin@file,dashboard-auth@docker"
+      - "traefik.http.routers.dashboard.middlewares=sec-admin@file"
       - "traefik.http.middlewares.dashboard-auth.basicauth.users=${DASHBOARD_CREDENTIALS}"
+      - "traefik.docker.network=traefik-public"
 
     volumes:
       - ./acme.json:/acme.json
