@@ -18,7 +18,7 @@ services:
 
     environment:
       - TZ=${TZ}
-      - ADMINER_DESIGN=hydra
+      - ADMINER_DESIGN=lavender-light
 
     labels:
       - "traefik.enable=true"
