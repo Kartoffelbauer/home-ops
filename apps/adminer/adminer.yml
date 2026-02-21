@@ -40,6 +40,6 @@ services:
 
 networks:
   traefik-public:
-    external: true
+    name: traefik-public
   db-internal:
-    external: true
+    name: db-internal

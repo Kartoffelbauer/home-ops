@@ -2,11 +2,11 @@ name: home-ops
 
 # Apps
 include:
-  - core/traefik/docker-compose.yml
-  - core/sftpgo/docker-compose.yml
-  - apps/adminer/docker-compose.yml
-  - apps/website-aaronsoft/docker-compose.yml
-  - apps/website-get-orga-niced/docker-compose.yml
+  - core/traefik/traefik.yml
+  - core/sftpgo/sftpgo.yml
+  - apps/adminer/adminer.yml
+  - apps/website-aaronsoft/website-aaronsoft.yml
+  - apps/website-get-orga-niced/website-get-orga-niced.yml
 
 networks:
   # Public traffic (Traefik <-> Apps)

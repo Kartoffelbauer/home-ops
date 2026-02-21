@@ -104,6 +104,6 @@ services:
 
 networks:
   traefik-public:
-    external: true
+    name: traefik-public
   socket-internal:
-    external: true
+    name: socket-internal

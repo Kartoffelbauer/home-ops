@@ -1,7 +1,7 @@
 services:
-  website-get-orga-niced:
+  website-aaronsoft:
     image: nginxinc/nginx-unprivileged:alpine
-    container_name: website-get-orga-niced
+    container_name: website-aaronsoft
     user: "${PUID}:${GUID}"
     restart: unless-stopped
 
@@ -22,11 +22,11 @@ services:
 
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.web-get-orga-niced.rule=${HOST_RULE}"
-      - "traefik.http.routers.web-get-orga-niced.entrypoints=websecure"
-      - "traefik.http.routers.web-get-orga-niced.tls.certresolver=myresolver"
-      - "traefik.http.routers.web-get-orga-niced.middlewares=sec-public@file" 
-      - "traefik.http.services.web-get-orga-niced.loadbalancer.server.port=8080"
+      - "traefik.http.routers.web-aaronsoft.rule=${HOST_RULE}"
+      - "traefik.http.routers.web-aaronsoft.entrypoints=websecure"
+      - "traefik.http.routers.web-aaronsoft.tls.certresolver=myresolver"
+      - "traefik.http.routers.web-aaronsoft.middlewares=sec-public@file" 
+      - "traefik.http.services.web-aaronsoft.loadbalancer.server.port=8080"
 
     networks:
       - traefik-public
@@ -39,4 +39,4 @@ services:
 
 networks:
   traefik-public:
-    external: true
+    name: traefik-public
