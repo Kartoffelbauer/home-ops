@@ -25,7 +25,6 @@ echo "   ✅ .env files secured (600)"
 SENSITIVE_FILES=(
     "core/traefik/data/acme.json"
     "core/traefik/traefik_dynamic.yml"
-    "core/sftpgo/users.json"
 )
 
 for file in "${SENSITIVE_FILES[@]}"; do
