@@ -56,6 +56,12 @@ services:
       - ../../.env
       - .env
 
+    # Pass the DNS Provider API Key securely from your .env file
+    environment:
+      # If using Gandi.net (v5 API):
+      - GANDIV5_PERSONAL_ACCESS_TOKEN=${ACME_API_TOKEN}
+      # Notice: LEGO_DISABLE_CNAME_SUPPORT is removed so CNAME delegation works!
+
     cap_drop: [ALL]
     cap_add: [NET_BIND_SERVICE]
     security_opt: [no-new-privileges:true]
@@ -67,49 +73,46 @@ services:
       - "443:443"
 
     command:
-      # Logs
       - "--log.level=INFO"
-      - "--accesslog=true" # Important for debugging 404s/500s
-      
-      # Dashboard
+      - "--accesslog=true"
       - "--api.dashboard=true"
 
       # Docker Provider (via Proxy)
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.endpoint=tcp://socket-proxy:2375" # Secure connection
+      - "--providers.docker.endpoint=tcp://socket-proxy:2375"
 
       # File Provider
       - "--providers.file.filename=/traefik_dynamic.yml"
       - "--providers.file.watch=true"
 
-      # Entrypoints
+      # Entrypoints (HTTP automatically redirects to HTTPS)
       - "--entrypoints.web.address=:80"
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
       - "--entrypoints.websecure.address=:443"
 
-      # Let's Encrypt
-      #- "--entrypoints.websecure.http.tls.certresolver=myresolver"
-      #- "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      #- "--certificatesresolvers.myresolver.acme.email=${ACME_EMAIL}"
-      #- "--certificatesresolvers.myresolver.acme.storage=/data/acme.json"
-
-      # --- Let's Encrypt Staging ---
+      # --- Let's Encrypt Staging (DNS Challenge) ---
+      # Remember to remove "-staging" from the caServer URL when moving to production!
       - "--entrypoints.websecure.http.tls.certresolver=myresolver"
       - "--certificatesresolvers.myresolver.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory"
       - "--certificatesresolvers.myresolver.acme.email=${ACME_EMAIL}"
       - "--certificatesresolvers.myresolver.acme.storage=/data/acme.json"
-      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
-      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.myresolver.acme.dnschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.dnschallenge.provider=gandiv5"
+      - "--certificatesresolvers.myresolver.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
+      # Give Gandi DNS time to sync the TXT record before Let's Encrypt checks it
+      - "--certificatesresolvers.myresolver.acme.dnschallenge.delayBeforeCheck=10" 
 
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      
+      # Dashboard Router
       - "traefik.http.routers.dashboard.rule=${DASHBOARD_HOST_RULE}"
       - "traefik.http.routers.dashboard.service=api@internal"
-      - "traefik.http.routers.dashboard.middlewares=sec-admin@file"
+      - "traefik.http.routers.dashboard.middlewares=sec-public@file"
       - "traefik.http.middlewares.dashboard-auth.basicauth.users=${DASHBOARD_CREDENTIALS}"
-      - "traefik.docker.network=traefik-public"
 
     volumes:
       - ./data:/data

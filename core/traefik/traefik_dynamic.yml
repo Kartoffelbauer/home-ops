@@ -1,56 +1,65 @@
 http:
-  middlewares:
-    # -------------------------------------------------------------------------------------------------
-    # 1. SECURITY MODULES
-    # -------------------------------------------------------------------------------------------------
-    
-    # Rate Limiting (DoS Protection)
-    rate-limit:
-      rateLimit:
-        average: 100
-        burst: 50
+  # -------------------------------------------------------------------------------------------------
+  # 1. ROUTERS (Domain Infrastructure & Wildcard SSL)
+  # -------------------------------------------------------------------------------------------------
+  routers:
+    # --- Aaronsoft.de Infrastructure ---
+    catchall-aaronsoft:
+      rule: "HostRegexp(`{subdomain:[a-z0-9-_]+}.aaronsoft.de`) || Host(`aaronsoft.de`)"
+      priority: 1 # Lowest priority: only triggers if no other container claims the URL
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "redirect-to-www"
+      service: "api@internal" # Dummy service
+      tls:
+        certResolver: "myresolver"
+        domains:
+          - main: "aaronsoft.de"
+            sans:
+              - "*.aaronsoft.de"
 
-    # Base Security Headers (HSTS, Anti-Sniffing)
-    sec-headers:
+    # --- Get-Orga-Niced.de Infrastructure ---
+    catchall-orga:
+      rule: "HostRegexp(`{subdomain:[a-z0-9-_]+}.get-orga-niced.de`) || Host(`get-orga-niced.de`)"
+      priority: 1
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "redirect-to-www"
+      service: "api@internal"
+      tls:
+        certResolver: "myresolver"
+        domains:
+          - main: "get-orga-niced.de"
+            sans:
+              - "*.get-orga-niced.de"
+
+  # -------------------------------------------------------------------------------------------------
+  # 2. MIDDLEWARES
+  # -------------------------------------------------------------------------------------------------
+  middlewares:
+    # --- Universal Domain-Independent Redirect ---
+    redirect-to-www:
+      redirectRegex:
+        regex: "^https?://(?:[^/]+\\.)?([^/]+\\.[^/]+)/(.*)"
+        replacement: "https://www.${1}/${2}"
+        permanent: true
+
+    # Security headers & Rate limiting
+    sec-public:
       headers:
         stsSeconds: 63072000
         stsIncludeSubdomains: true
         stsPreload: true
         forceSTSHeader: true
-        contentTypeNosniff: true
-        frameDeny: true
-        customFrameOptionsValue: "SAMEORIGIN"
-        referrerPolicy: "strict-origin-when-cross-origin"
-        customResponseHeaders:
-          X-XSS-Protection: "0"
+      rateLimit:
+        average: 100
+        burst: 50
 
-    # Strict App Headers (No Robots, No Downloads)
-    sec-strict-headers:
-      headers:
-        customResponseHeaders:
-          X-Robots-Tag: "none"
-          X-Download-Options: "noopen"
-          X-Permitted-Cross-Domain-Policies: "none"
-
-    # -------------------------------------------------------------------------------------------------
-    # 2. MIDDLEWARE CHAINS
-    # -------------------------------------------------------------------------------------------------
-    
-    # Use for: Public Websites (e.g., aaronsoft.de)
-    sec-public:
-      chain:
-        middlewares:
-          - rate-limit
-          - sec-headers
-
-    # Use for: Internal Tools (e.g., Adminer, Traefik Dashboard)
-    sec-admin:
-      chain:
-        middlewares:
-          - rate-limit
-          - sec-headers
-          - sec-strict-headers
-
+# -------------------------------------------------------------------------------------------------
+# 3. TLS OPTIONS
+# -------------------------------------------------------------------------------------------------
 tls:
   options:
     default:
