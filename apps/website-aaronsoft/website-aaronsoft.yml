@@ -1,44 +1,28 @@
 services:
-  init-website-aaronsoft:
-    image: busybox:1.36
-    container_name: init-website-aaronsoft
-    command: sh -c "chown -R ${PUID}:${GUID} /data && chmod -R 755 /data"
-    volumes:
-      - ${WEB_CONTENT_PATH}:/data
-    network_mode: none
-    read_only: true
-    cap_drop:
-      - ALL
-    cap_add:
-      - CHOWN
-      - FOWNER
-      - DAC_OVERRIDE
-    security_opt:
-      - no-new-privileges:true
-
   website-aaronsoft:
-    image: nginxinc/nginx-unprivileged:alpine
+    image: ghcr.io/Kartoffelbauer/web-aaronsoft:latest
     container_name: website-aaronsoft
     user: "${PUID}:${GUID}"
-    depends_on:
-      init-website-aaronsoft:
-        condition: service_completed_successfully
     restart: unless-stopped
 
-    env_file:
-      - ../../.env
-      - .env
-
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
+    # Security Hardening: Drop all capabilities
+    cap_drop:
+      - ALL
+    # Security Hardening: Prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    # Security Hardening: Read-only root filesystem
     read_only: true
+
+    # Writable areas for Nginx (required when read_only is true)
     tmpfs:
       - /tmp
       - /var/cache/nginx
       - /var/run
 
-    volumes:
-      - ${WEB_CONTENT_PATH}:/usr/share/nginx/html:ro
+    env_file:
+      - ../../.env
+      - .env
 
     labels:
       - "traefik.enable=true"
@@ -52,7 +36,7 @@ services:
       - traefik-public
 
     healthcheck:
-      #test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/ || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
