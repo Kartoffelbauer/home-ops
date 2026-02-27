@@ -1,8 +1,7 @@
 services:
   website-aaronsoft:
-    image: ghcr.io/Kartoffelbauer/web-aaronsoft:latest
+    image: ghcr.io/kartoffelbauer/web-aaronsoft:latest
     container_name: website-aaronsoft
-    user: "${PUID}:${GUID}"
     restart: unless-stopped
 
     # Security Hardening: Drop all capabilities
@@ -29,17 +28,18 @@ services:
       - "traefik.http.routers.web-aaronsoft.rule=${HOST_RULE}"
       - "traefik.http.routers.web-aaronsoft.entrypoints=websecure"
       - "traefik.http.routers.web-aaronsoft.tls.certresolver=myresolver"
-      - "traefik.http.routers.web-aaronsoft.middlewares=sec-public@file" 
+      - "traefik.http.routers.web-aaronsoft.middlewares=sec-public@file"
       - "traefik.http.services.web-aaronsoft.loadbalancer.server.port=8080"
 
     networks:
       - traefik-public
 
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/ || exit 1"]
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:8080/ || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 5s
 
 networks:
   traefik-public:

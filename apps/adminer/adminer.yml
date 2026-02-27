@@ -2,7 +2,6 @@ services:
   adminer:
     image: adminer
     container_name: adminer
-    user: "${PUID}:${GUID}"
     restart: unless-stopped
 
     env_file:
@@ -34,10 +33,12 @@ services:
       - db-internal  # Connects to your future databases
 
     healthcheck:
-      #test: ["CMD-SHELL", "curl -f http://localhost:8080 || exit 1"]
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:8080/ || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 5s
+
 
 networks:
   traefik-public:
