@@ -46,16 +46,27 @@ http:
         replacement: "https://www.${1}/${2}"
         permanent: true
 
-    # Security headers & Rate limiting
-    sec-public:
+    # Rate limiting
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+
+    # Security headers
+    sec-transport:
       headers:
         stsSeconds: 63072000
         stsIncludeSubdomains: true
         stsPreload: true
         forceSTSHeader: true
-      rateLimit:
-        average: 100
-        burst: 50
+
+    # Public middleware
+    sec-public:
+      chain:
+        middlewares:
+          - sec-transport
+          - rate-limit
+
 
 # -------------------------------------------------------------------------------------------------
 # 3. TLS OPTIONS

@@ -27,7 +27,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.web-get-orga-niced.rule=${HOST_RULE}"
       - "traefik.http.routers.web-get-orga-niced.entrypoints=websecure"
-      - "traefik.http.routers.web-get-orga-niced.tls.certresolver=myresolver"
+      - "traefik.http.routers.web-get-orga-niced.tls=true"
       - "traefik.http.routers.web-get-orga-niced.middlewares=sec-public@file"
       - "traefik.http.services.web-get-orga-niced.loadbalancer.server.port=8080"
 

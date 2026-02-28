@@ -60,7 +60,7 @@ services:
     environment:
       # If using Gandi.net (v5 API):
       - GANDIV5_PERSONAL_ACCESS_TOKEN=${ACME_API_TOKEN}
-      # Notice: LEGO_DISABLE_CNAME_SUPPORT is removed so CNAME delegation works!
+      - LEGO_DISABLE_CNAME_SUPPORT=true
 
     cap_drop: [ALL]
     cap_add: [NET_BIND_SERVICE]
