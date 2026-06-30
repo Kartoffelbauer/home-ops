@@ -48,7 +48,6 @@ services:
     command: >
       sh -c "
         mkdir -p /data/config && mkdir -p /data/media &&
-        cp /config/configuration.yaml /data/config/configuration.yaml &&
         touch /data/config/automations.yaml /data/config/scripts.yaml /data/config/scenes.yaml /data/config/secrets.yaml &&
         chown -R 0:0 /data
       "
@@ -65,6 +64,7 @@ services:
     command:
       - "marsh4200/ar_smart_ir:${HOMEASSISTANT_EXT_ARSMARTIR_DOCKER_TAG:-latest}"
       - "marsh4200/ar_smart_ir_builder:${HOMEASSISTANT_EXT_ARSMARTIR_BUILDER_DOCKER_TAG:-latest}"
+      - "edmogeor/hass-ga-manual-ui:${HOMEASSISTANT_EXT_HASS_GA_MANUAL_UI_DOCKER_TAG:-latest}"
 
   # --- Main Smart Home Service: Home Assistant ---
   home-assistant:
