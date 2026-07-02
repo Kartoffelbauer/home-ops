@@ -37,7 +37,7 @@ services:
       - "traefik.http.routers.fallback-secondary.entrypoints=websecure"
       - "traefik.http.routers.fallback-secondary.middlewares=rewrite-to-index"
       - "traefik.http.routers.fallback-secondary.priority=2"
-      - "traefik.http.routers.fallback-secondary.rule=Host(`${ADMINER_SUBDOMAIN:-adminer}.${DOMAIN_SECONDARY:-localhost}`) || Host(`${ROUNDCUBE_SUBDOMAIN:-mail}.${DOMAIN_SECONDARY:-localhost}`) || Host(`${WEB_SUBDOMAIN:-www}.${DOMAIN_SECONDARY:-localhost}`)"
+      - "traefik.http.routers.fallback-secondary.rule=Host(`${ROUNDCUBE_SUBDOMAIN:-mail}.${DOMAIN_SECONDARY:-localhost}`) || Host(`${WEB_SUBDOMAIN:-www}.${DOMAIN_SECONDARY:-localhost}`)"
       - "traefik.http.routers.fallback-secondary.service=fallback-svc"
 
     # State: Mount the HTML folder, Nginx server configs and the required temp dirs for Nginx
