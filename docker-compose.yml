@@ -20,6 +20,7 @@ include:
   - apps/home-assistant/home-assistant.yml
   - apps/roundcube/roundcube.yml
   - apps/ocis/ocis.yml
+  - apps/pihole/pihole.yml
   - apps/websites/web-aaronsoft/web-aaronsoft.yml
   - apps/websites/web-get-orga-niced/web-get-orga-niced.yml
 

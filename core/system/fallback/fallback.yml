@@ -30,14 +30,14 @@ services:
       - "traefik.http.routers.fallback-primary.entrypoints=websecure"
       - "traefik.http.routers.fallback-primary.middlewares=rewrite-to-index"
       - "traefik.http.routers.fallback-primary.priority=2"
-      - "traefik.http.routers.fallback-primary.rule=Host(`${WEB_SUBDOMAIN:-www}.${DOMAIN_PRIMARY:-localhost}`) || Host(`${HOMEASSISTANT_SUBDOMAIN:-home}.${DOMAIN_PRIMARY:-localhost}`) || Host(`${ROUNDCUBE_SUBDOMAIN:-mail}.${DOMAIN_PRIMARY:-localhost}`) || Host(`${ADMINER_SUBDOMAIN:-adminer}.${DOMAIN_PRIMARY:-localhost}`) || Host(`onlyoffice.${DOMAIN_PRIMARY:-localhost}`) || Host(`${OCIS_SUBDOMAIN:-ocis}.${DOMAIN_PRIMARY:-localhost}`)"
+      - "traefik.http.routers.fallback-primary.rule=Host(`${ADMINER_SUBDOMAIN:-adminer}.${DOMAIN_PRIMARY:-localhost}`) || Host(`${HOMEASSISTANT_SUBDOMAIN:-home}.${DOMAIN_PRIMARY:-localhost}`) || Host(`${OCIS_SUBDOMAIN:-ocis}.${DOMAIN_PRIMARY:-localhost}`) || Host(`onlyoffice.${DOMAIN_PRIMARY:-localhost}`) || Host(`${PIHOLE_SUBDOMAIN:-pihole}.${DOMAIN_PRIMARY:-localhost}`) || Host(`${ROUNDCUBE_SUBDOMAIN:-mail}.${DOMAIN_PRIMARY:-localhost}`) || Host(`${WEB_SUBDOMAIN:-www}.${DOMAIN_PRIMARY:-localhost}`)"
       - "traefik.http.routers.fallback-primary.service=fallback-svc"
 
       # Secondary Domain
       - "traefik.http.routers.fallback-secondary.entrypoints=websecure"
       - "traefik.http.routers.fallback-secondary.middlewares=rewrite-to-index"
       - "traefik.http.routers.fallback-secondary.priority=2"
-      - "traefik.http.routers.fallback-secondary.rule=Host(`${WEB_SUBDOMAIN:-www}.${DOMAIN_SECONDARY:-localhost}`) || Host(`${ROUNDCUBE_SUBDOMAIN:-mail}.${DOMAIN_SECONDARY:-localhost}`) || Host(`${ADMINER_SUBDOMAIN:-adminer}.${DOMAIN_SECONDARY:-localhost}`)"
+      - "traefik.http.routers.fallback-secondary.rule=Host(`${ADMINER_SUBDOMAIN:-adminer}.${DOMAIN_SECONDARY:-localhost}`) || Host(`${ROUNDCUBE_SUBDOMAIN:-mail}.${DOMAIN_SECONDARY:-localhost}`) || Host(`${WEB_SUBDOMAIN:-www}.${DOMAIN_SECONDARY:-localhost}`)"
       - "traefik.http.routers.fallback-secondary.service=fallback-svc"
 
     # State: Mount the HTML folder, Nginx server configs and the required temp dirs for Nginx

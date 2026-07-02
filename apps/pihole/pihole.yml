@@ -1,0 +1,90 @@
+services:
+  # --- Init Service: Prepares permissions for Pi-hole ---
+  pihole-init:
+    extends:
+      file: ../../shared/templates.yml
+      service: base-init
+    container_name: pihole-init
+
+    # Execution: Create directory structure and assign FTL user permissions
+    command: sh -c "mkdir -p /data/etc-pihole && chown -R ${PIHOLE_PUID:-1006}:${PIHOLE_PGID:-1006} /data"
+
+    # State: Mount local data directory
+    volumes:
+      - ./data:/data
+
+  # --- Main Service: Pi-hole DNS & Web Interface ---
+  pihole:
+    extends:
+      file: ../../shared/templates.yml
+      service: base-secure
+    image: pihole/pihole:${PIHOLE_DOCKER_TAG:-latest}
+    container_name: pihole
+
+    # Security: Explicitly grant required kernel capabilities
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - NET_BIND_SERVICE
+      - SETFCAP
+      - SETGID
+      - SETUID
+      - SYS_NICE
+
+    # Resource Allocation: Allow the container to set process niceness up to -20
+    ulimits:
+      nice:
+        soft: -20
+        hard: -20
+
+    # Lifecycle: Wait for initialization container to establish file ownership
+    depends_on:
+      pihole-init:
+        condition: service_completed_successfully
+
+    # Connectivity: Expose DNS to local network and attach to Traefik + Outbound
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+    networks:
+      - traefik-public
+      - outbound-public
+
+    # Configuration: Set environment variables for Pi-hole configuration and user/group IDs
+    environment:
+      FTLCONF_dhcp_active: "false"
+      FTLCONF_dns_listeningMode: "ALL"
+      FTLCONF_dns_upstreams: "1.1.1.1;1.0.0.1"
+      FTLCONF_ntp_ipv4_active: "false"
+      FTLCONF_ntp_ipv6_active: "false"
+      FTLCONF_ntp_sync_active: "false"
+      FTLCONF_webserver_api_password: "${PIHOLE_WEB_PASSWORD:?}"
+      FTLCONF_webserver_port: "80"
+      PIHOLE_GID: "${PIHOLE_PGID:-1006}"
+      PIHOLE_UID: "${PIHOLE_PUID:-1006}"
+      TZ: "${TZ:-Etc/UTC}"
+
+    # Routing: Traefik dynamic configuration (Alphabetized)
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pihole.entrypoints=websecure"
+      - "traefik.http.routers.pihole.rule=Host(`${PIHOLE_SUBDOMAIN:-pihole}.${DOMAIN_PRIMARY:-localhost}`)"
+      - "traefik.http.services.pihole.loadbalancer.server.port=80"
+
+    # State: Persistent FTL config and in-memory mounts explicitly required for read-only filesystem
+    volumes:
+      - ./data/etc-pihole:/etc/pihole
+    tmpfs:
+      - /tmp
+      - /run
+      - /var/log/pihole
+
+    # Monitoring: Internal check targeting local DNS resolution directly
+    healthcheck:
+      test: "dig +short +norecurse +retry=0 @127.0.0.1 pi.hole || exit 1"
+
+# --- Global Network Definitions ---
+networks:
+  outbound-public:
+  traefik-public:
