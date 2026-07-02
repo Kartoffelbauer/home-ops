@@ -57,8 +57,8 @@ services:
       FTLCONF_dns_listeningMode: "ALL"
       FTLCONF_dns_upstreams: "1.1.1.1;1.0.0.1"
       FTLCONF_misc_dnsmasq_lines: |-
-        address=/${DOMAIN_PRIMARY:-localhost}/${HOST_LOCAL_IP:?}
-        address=/${DOMAIN_SECONDARY:-localhost}/${HOST_LOCAL_IP:?}
+        address=/${DOMAIN_PRIMARY:-localhost}/${HOST_LOCAL_IP:-0.0.0.0}
+        address=/${DOMAIN_SECONDARY:-localhost}/${HOST_LOCAL_IP:-0.0.0.0}
       FTLCONF_ntp_ipv4_active: "false"
       FTLCONF_ntp_ipv6_active: "false"
       FTLCONF_ntp_sync_active: "false"
