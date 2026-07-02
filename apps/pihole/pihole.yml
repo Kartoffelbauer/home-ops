@@ -72,13 +72,9 @@ services:
       - "traefik.http.routers.pihole.rule=Host(`${PIHOLE_SUBDOMAIN:-pihole}.${DOMAIN_PRIMARY:-localhost}`)"
       - "traefik.http.services.pihole.loadbalancer.server.port=80"
 
-    # State: Persistent FTL config and in-memory mounts explicitly required for read-only filesystem
+    # State: Persistent FTL config
     volumes:
       - ./data/etc-pihole:/etc/pihole
-    tmpfs:
-      - /tmp
-      - /run
-      - /var/log/pihole
 
     # Monitoring: Internal check targeting local DNS resolution directly
     healthcheck:
