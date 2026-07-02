@@ -18,7 +18,7 @@ services:
     extends:
       file: ../../shared/templates.yml
       service: base-secure
-    image: pihole/pihole:${PIHOLE_DOCKER_TAG:-latest}
+    image: pihole/pihole:${PIHOLE_DOCKER_TAG:-2026.06.0}
     container_name: pihole
 
     # Security: Explicitly grant required kernel capabilities
