@@ -35,6 +35,7 @@ networks:
   outbound-public:
     name: outbound-public
     driver: bridge
+    ipv6: true
 
   # Security: Highly restricted internal network strictly for Traefik to read the Docker socket via proxy
   socket-internal:
