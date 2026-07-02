@@ -51,11 +51,14 @@ services:
       - traefik-public
       - outbound-public
 
-    # Configuration: Set environment variables for Pi-hole configuration and user/group IDs
+    # Configuration: Set environment variables for Pi-hole configuration and user/group IDs (Alphabetized)
     environment:
       FTLCONF_dhcp_active: "false"
       FTLCONF_dns_listeningMode: "ALL"
       FTLCONF_dns_upstreams: "1.1.1.1;1.0.0.1"
+      FTLCONF_misc_dnsmasq_lines: |-
+        address=/${DOMAIN_PRIMARY:-localhost}/${HOST_LOCAL_IP:?}
+        address=/${DOMAIN_SECONDARY:-localhost}/${HOST_LOCAL_IP:?}
       FTLCONF_ntp_ipv4_active: "false"
       FTLCONF_ntp_ipv6_active: "false"
       FTLCONF_ntp_sync_active: "false"
