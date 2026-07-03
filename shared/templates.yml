@@ -5,6 +5,11 @@ x-healthcheck-defaults: &healthcheck-defaults
   timeout: 10s
   retries: 3
 
+x-outbound-dependencies: &outbound-dependencies
+  depends_on:
+    pihole:
+      condition: service_healthy
+
  # --- Init Service: Templates for preparing permissions ---
 services:
   base-init:
@@ -32,6 +37,12 @@ services:
     environment:
       TZ: "${TZ:-Etc/UTC}"
 
+    # --- Basic Outbound Init Service: For containers requiring active internet/DNS ---
+    base-init-outbound:
+      extends:
+        service: base-init
+      <<: *outbound-dependencies
+
   # --- Basic Service Base: Template for basic containers ---
   base-default:
     restart: unless-stopped
@@ -43,6 +54,12 @@ services:
     # Healthcheck: Inject the anchor locally
     healthcheck:
       <<: *healthcheck-defaults
+
+  # --- Basic Outbound Dependent Base: For containers requiring active internet/DNS ---
+  base-default-outbound:
+    extends:
+      service: base-default
+    <<: *outbound-dependencies
 
   # --- Secure Service Base: Template for secure containers ---
   base-secure:
@@ -65,3 +82,9 @@ services:
     # Healthcheck: Inject the anchor locally
     healthcheck:
       <<: *healthcheck-defaults
+
+  # --- Secure Outbound Dependent Base: For containers requiring active internet/DNS ---
+  base-secure-outbound:
+    extends:
+      service: base-secure
+    <<: *outbound-dependencies

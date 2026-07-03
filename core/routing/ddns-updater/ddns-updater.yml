@@ -17,7 +17,7 @@ services:
   ddns-updater:
     extends:
       file: ../../../shared/templates.yml
-      service: base-secure
+      service: base-secure-outbound
     image: qmcgaw/ddns-updater:${DDNS_UPDATER_DOCKER_TAG:-latest}
     container_name: ddns-updater
 

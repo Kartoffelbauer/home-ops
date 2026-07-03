@@ -50,7 +50,7 @@ services:
   traefik:
     extends:
       file: ../../../shared/templates.yml
-      service: base-secure
+      service: base-secure-outbound
     image: traefik:${TRAEFIK_DOCKER_TAG:-v3}
     container_name: traefik
 

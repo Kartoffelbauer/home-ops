@@ -1,9 +1,11 @@
 # --- DRY Templates ---
 # Template for oCIS Web Extensions
 x-ocis-ext-base: &ocis-ext-base
-  # Security: Set base privileges and capabilities
+  # Execution: Run as root and define platform for compatibility
   user: root
   platform: linux/amd64
+
+  # Security: Set base privileges and capabilities
   security_opt:
     - no-new-privileges:true
   cap_drop:
@@ -14,7 +16,7 @@ x-ocis-ext-base: &ocis-ext-base
     - FSETID
     - DAC_OVERRIDE
 
-  # Lifecycle: Wait for init
+  # Lifecycle: Wait for required services to be ready before running
   depends_on:
     ocis-init:
       condition: service_completed_successfully
@@ -26,23 +28,43 @@ x-ocis-ext-base: &ocis-ext-base
 # Template for oCIS Web Extensions
 x-ocis-ext-default: &ocis-ext-default
   <<: *ocis-ext-base
+
+  # Execution: Set base entrypoint
   entrypoint:
     - /bin/sh
     - -c
+
+  # Connectivity: No external network access required for extension initialization
   network_mode: none
 
 # Template for oCIS Web Extensions with custom logic
 x-ocis-ext-custom: &ocis-ext-custom
   <<: *ocis-ext-base
   image: alpine:${ALPINE_DOCKER_TAG:-3.23}
+
+  # Configuration: Set user and group IDs for oCIS
   environment:
     OCIS_PUID: "${OCIS_PUID:-1005}"
     OCIS_PGID: "${OCIS_PGID:-1005}"
+
+  # Execution: Set base entrypoint
   entrypoint:
     - /bin/sh
     - /init.sh
+
+  # Connectivity: Needs internet to hit GitHub API
   networks:
     - outbound-public
+      pihole:
+
+  # Lifecycle: Wait for required services to be ready before running
+  depends_on:
+    ocis-init:
+      condition: service_completed_successfully
+    pihole:
+      condition: service_healthy
+
+  # State: Mount the config volume and script
   volumes:
     - ocis-apps:/apps
     - ./init/init-extensions.sh:/init.sh:ro
@@ -158,7 +180,7 @@ services:
   ocis:
     extends:
       file: ../../shared/templates.yml
-      service: base-secure
+      service: base-secure-outbound
     image: owncloud/ocis:${OCIS_DOCKER_TAG:-8.0}
     container_name: ocis
 
@@ -253,7 +275,7 @@ services:
   ocis-collaboration-oo:
     extends:
       file: ../../shared/templates.yml
-      service: base-secure
+      service: base-secure-outbound
     image: owncloud/ocis:${OCIS_DOCKER_TAG:-8.0}
     container_name: ocis-collaboration-oo
 

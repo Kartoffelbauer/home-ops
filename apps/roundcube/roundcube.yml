@@ -3,7 +3,7 @@ services:
   roundcube:
     extends:
       file: ../../shared/templates.yml
-      service: base-secure
+      service: base-secure-outbound
     image: ghcr.io/kartoffelbauer/docker-roundcube-custom:${ROUNDCUBE_DOCKER_TAG:-1.6-nonroot}
     container_name: roundcube
 

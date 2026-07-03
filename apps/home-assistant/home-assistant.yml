@@ -18,10 +18,12 @@ x-ha-ext-base: &ha-ext-base
     - FSETID
     - DAC_OVERRIDE
 
-  # Lifecycle: Runs strictly after the base folders are created
+  # Lifecycle: Wait for required services to be ready before running
   depends_on:
     home-assistant-init:
       condition: service_completed_successfully
+    pihole:
+      condition: service_healthy
 
   # Execution: Set base entrypoint
   entrypoint:
@@ -71,7 +73,7 @@ services:
   home-assistant:
     extends:
       file: ../../shared/templates.yml
-      service: base-secure
+      service: base-secure-outbound
     image: ghcr.io/home-assistant/home-assistant:${HOMEASSISTANT_DOCKER_TAG:-stable}
     container_name: home-assistant
 
