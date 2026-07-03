@@ -26,16 +26,16 @@ include:
 
 # --- Global Network Definitions ---
 networks:
-  # Connectivity: Public traffic routing from the reverse proxy to exposed applications
-  traefik-public:
-    name: traefik-public
-    driver: bridge
-
   # Connectivity: Outbound internet access for services requiring external APIs (e.g., Watchtower, DDNS)
   outbound-public:
     name: outbound-public
     driver: bridge
-    ipv6: true
+    enable_ipv6: true
+
+  # Connectivity: Public traffic routing from the reverse proxy to exposed applications
+  traefik-public:
+    name: traefik-public
+    driver: bridge
 
   # Security: Highly restricted internal network strictly for Traefik to read the Docker socket via proxy
   socket-internal:
