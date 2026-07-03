@@ -55,7 +55,6 @@ x-ocis-ext-custom: &ocis-ext-custom
   # Connectivity: Needs internet to hit GitHub API
   networks:
     - outbound-public
-      pihole:
 
   # Lifecycle: Wait for required services to be ready before running
   depends_on:

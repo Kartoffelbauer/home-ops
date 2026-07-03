@@ -3,7 +3,7 @@ services:
   watchtower:
     extends:
       file: ../../../shared/templates.yml
-      service: base-secure.outbound
+      service: base-secure-outbound
     image: nickfedor/watchtower:${WATCHTOWER_DOCKER_TAG:-latest}
     container_name: watchtower
 

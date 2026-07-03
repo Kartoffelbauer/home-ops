@@ -6,6 +6,7 @@ name: home-ops
 include:
   # 1. Network & Routing Tier
   - core/routing/ddns-updater/ddns-updater.yml
+  - apps/pihole/pihole.yml
   - core/routing/traefik/traefik.yml
 
   # 2. Database Tier
@@ -20,7 +21,6 @@ include:
   - apps/home-assistant/home-assistant.yml
   - apps/ocis/ocis.yml
   - apps/roundcube/roundcube.yml
-  - apps/pihole/pihole.yml
   - apps/websites/web-aaronsoft/web-aaronsoft.yml
   - apps/websites/web-get-orga-niced/web-get-orga-niced.yml
 

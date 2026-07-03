@@ -10,7 +10,7 @@ x-outbound-dependencies: &outbound-dependencies
     pihole:
       condition: service_healthy
 
- # --- Init Service: Templates for preparing permissions ---
+# --- Init Service: Templates for preparing permissions ---
 services:
   base-init:
     image: busybox:${BUSYBOX_DOCKER_TAG:-1.37}
