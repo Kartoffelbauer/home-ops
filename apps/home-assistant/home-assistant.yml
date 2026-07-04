@@ -50,7 +50,7 @@ services:
     command: >
       sh -c "
         mkdir -p /data/config && mkdir -p /data/media &&
-        cp -n /config/configuration.yaml /data/config/ &&
+        cp /config/configuration.yaml /data/config/ &&
         touch /data/config/automations.yaml /data/config/scripts.yaml /data/config/scenes.yaml /data/config/secrets.yaml &&
         chown -R 0:0 /data
       "
