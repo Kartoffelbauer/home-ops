@@ -7,7 +7,7 @@ services:
     container_name: pihole-init
 
     # Execution: Create directory structure and assign FTL user permissions
-    command: sh -c "mkdir -p /data/etc-pihole && chown -R ${PIHOLE_PUID:-1006}:${PIHOLE_PGID:-1006} /data"
+    command: sh -c "mkdir -p /data/etc-pihole && chown -R ${PIHOLE_PUID:-1002}:${PIHOLE_PGID:-1002} /data"
 
     # State: Mount local data directory
     volumes:
@@ -95,8 +95,8 @@ services:
       FTLCONF_ntp_sync_active: "false"
       FTLCONF_webserver_api_password: "${PIHOLE_WEB_PASSWORD:?}"
       FTLCONF_webserver_port: "80"
-      PIHOLE_GID: "${PIHOLE_PGID:-1006}"
-      PIHOLE_UID: "${PIHOLE_PUID:-1006}"
+      PIHOLE_GID: "${PIHOLE_PGID:-1002}"
+      PIHOLE_UID: "${PIHOLE_PUID:-1002}"
       TZ: "${TZ:-Etc/UTC}"
 
     # Routing: Traefik dynamic configuration (Alphabetized)

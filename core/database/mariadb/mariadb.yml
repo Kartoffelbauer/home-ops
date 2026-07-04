@@ -7,7 +7,7 @@ services:
     container_name: mariadb-init
 
     # Execution: Create directory and fix permissions
-    command: sh -c "chown -R ${MARIADB_PUID:-1003}:${MARIADB_PGID:-1003} /data"
+    command: sh -c "chown -R ${MARIADB_PUID:-1004}:${MARIADB_PGID:-1004} /data"
 
     # State: Mount database directory
     volumes:
@@ -22,7 +22,7 @@ services:
     container_name: mariadb
 
     # Security: Run as non-root user, lock filesystem
-    user: "${MARIADB_PUID:-1003}:${MARIADB_PGID:-1003}"
+    user: "${MARIADB_PUID:-1004}:${MARIADB_PGID:-1004}"
     read_only: true
 
     # Lifecycle: Wait for permissions to be fixed

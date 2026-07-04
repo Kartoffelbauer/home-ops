@@ -7,7 +7,7 @@ services:
     container_name: traefik-init
 
     # Execution: Touch file and fix permissions
-    command: sh -c "touch /data/acme.json && chown -R ${TRAEFIK_PUID:-1001}:${TRAEFIK_PGID:-1001} /data && chmod 600 /data/acme.json"
+    command: sh -c "touch /data/acme.json && chown -R ${TRAEFIK_PUID:-1003}:${TRAEFIK_PGID:-1003} /data && chmod 600 /data/acme.json"
 
     # State: Mount data directory
     volumes:
@@ -55,7 +55,7 @@ services:
     container_name: traefik
 
     # Security: Run as non-root user, lock filesystem, add port capabilities
-    user: "${TRAEFIK_PUID:-1001}:${TRAEFIK_PGID:-1001}"
+    user: "${TRAEFIK_PUID:-1003}:${TRAEFIK_PGID:-1003}"
     read_only: true
     cap_add:
       - NET_BIND_SERVICE

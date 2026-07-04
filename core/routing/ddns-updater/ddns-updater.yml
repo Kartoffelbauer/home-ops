@@ -7,7 +7,7 @@ services:
     container_name: ddns-updater-init
 
     # Execution: Fix permissions
-    command: sh -c "chown -R ${DDNS_UPDATER_PUID:-1002}:${DDNS_UPDATER_PGID:-1002} /data"
+    command: sh -c "chown -R ${DDNS_UPDATER_PUID:-1001}:${DDNS_UPDATER_PGID:-1001} /data"
 
     # State: Mount data directory
     volumes:
@@ -22,7 +22,7 @@ services:
     container_name: ddns-updater
 
     # Security: Run as non-root user, lock the filesystem
-    user: "${DDNS_UPDATER_PUID:-1002}:${DDNS_UPDATER_PGID:-1002}"
+    user: "${DDNS_UPDATER_PUID:-1001}:${DDNS_UPDATER_PGID:-1001}"
     read_only: true
 
     # Lifecycle: Wait for permissions to be fixed
