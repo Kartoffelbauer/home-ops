@@ -5,11 +5,15 @@ default_config:
 frontend:
   themes: !include_dir_merge_named themes
 
-# Load automations, scripts, scenes, and secrets
+# Load automations, scripts, scenes, and resources
 automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
 
+# Load Dashboard UI and auto-generated frontend resources
+lovelace:
+  mode: storage
+  resources: !include resources.yaml
 
 # Reverse Proxy Security Configuration
 http:
