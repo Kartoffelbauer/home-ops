@@ -59,45 +59,42 @@ The stack is modular, splitting services into logical domains:
 
 4. **Configure Firewall (UFW)**
 
-    To secure the host architecture under a **Least-Privilege** model, local core services (DNS, UPnP) are locked down to the private LAN, while the Traefik reverse proxy handles all external routing without exposing backend ports directly.
+    To secure the host architecture under a Least-Privilege model, local core infrastructure is locked down to private networks, while the Edge Proxy handles public traffic entry points.
 
-    Run the following commands to apply the hardened firewall profile:
+    Run the following commands to apply the deployment profile:
 
     ```bash
-    # Allows the proxy container (from Docker bridge) to reach the host network interface
+    # --- Layer 1: Public Edge Proxy (Traefik Inbound) ---
+    sudo ufw allow proto tcp from any to any port 80 comment 'Traefik: Web HTTP'
+    sudo ufw allow proto tcp from any to any port 443 comment 'Traefik: Web HTTPS (TCP)'
+    sudo ufw allow proto udp from any to any port 443 comment 'Traefik: Web HTTPS (UDP/HTTP3)'
+
+    # --- Layer 2: Internal Proxy Routing (Traefik to Host Services) ---
     sudo ufw allow in from 172.16.0.0/12 to 172.17.0.1 port 8123 proto tcp comment 'Allow Traefik to Host Home Assistant'
 
-    # Allows global devices to access your web apps securely via HTTP/S over IPv4 and IPv6
-    sudo ufw allow proto tcp from any to any port 80 comment 'Traefik: Global HTTP'
-    sudo ufw allow proto tcp from any to any port 443 comment 'Traefik: Global HTTPS'
+    # --- Layer 3: Core Infrastructure (Pi-hole Local DNS) ---
+    sudo ufw allow from <LAN_IPV4_SUBNET> to <HOST_LAN_IPV4> port 53 proto udp comment 'Pi-hole: IPv4 DNS (UDP)'
+    sudo ufw allow from <LAN_IPV4_SUBNET> to <HOST_LAN_IPV4> port 53 proto tcp comment 'Pi-hole: IPv4 DNS (TCP)'
+    sudo ufw allow from fe80::/10 to <HOST_IPV6_LINK_LOCAL> port 53 proto udp comment 'Pi-hole: IPv6 DNS (UDP)'
+    sudo ufw allow from fe80::/10 to <HOST_IPV6_LINK_LOCAL> port 53 proto tcp comment 'Pi-hole: IPv6 DNS (TCP)'
 
-    # IPv6 Link-Local rule is critical to prevent multi-second website lookup latencies (Happy Eyeballs timeouts)
-    sudo ufw allow from <LAN_IPV4_SUBNET> to <HOST_LAN_IPV4> port 53 proto udp comment 'Pi-hole: LAN IPv4 DNS (UDP)'
-    sudo ufw allow from <LAN_IPV4_SUBNET> to <HOST_LAN_IPV4> port 53 proto tcp comment 'Pi-hole: LAN IPv4 DNS (TCP)'
-    sudo ufw allow from fe80::/10 to <HOST_IPV6_LINK_LOCAL> port 53 proto udp comment 'Pi-hole: LAN IPv6 Link-Local DNS (UDP)'
-    sudo ufw allow from fe80::/10 to <HOST_IPV6_LINK_LOCAL> port 53 proto tcp comment 'Pi-hole: LAN IPv6 Link-Local DNS (TCP)'
+    # --- Layer 4: Smart Home Discovery (UPnP / SSDP Multicast) ---
+    sudo ufw allow in proto igmp to any comment 'UPnP: IGMP Tracking'
+    sudo ufw allow in proto udp to 239.255.255.250 port 1900 comment 'UPnP: IPv4 Multicast SSDP'
+    sudo ufw allow in proto udp to ff02::c port 1900 comment 'UPnP: IPv6 Multicast SSDP'
 
-    # Standardized global network definitions for multicast routing and device discovery
-    sudo ufw allow in proto igmp to any comment 'UPnP: Allow IGMP Multicast Tracking'
-    sudo ufw allow in proto udp to 239.255.255.250 port 1900 comment 'UPnP: Allow SSDP Multicast Discovery'
-
-    # Subnet-wide rule allowing local smart home gateways and IoT devices to respond to UPnP/APIs
-    sudo ufw allow in proto udp from <LAN_IPV4_SUBNET> port 1900 to <HOST_LAN_IPV4> port 1900 comment 'UPnP: LAN UDP Discovery Responses'
-    sudo ufw allow in proto tcp from <LAN_IPV4_SUBNET> to <HOST_LAN_IPV4> port 30000:40000 comment 'UPnP: LAN TCP Push / TR-064 APIs'
+    # --- Layer 5: Smart Home Discovery (Inbound Gateway Responses) ---
+    sudo ufw allow in proto udp from <LAN_IPV4_SUBNET> port 1900 to <HOST_LAN_IPV4> port 1900 comment 'UPnP: LAN UDP Responses'
+    sudo ufw allow in proto tcp from <LAN_IPV4_SUBNET> to <HOST_LAN_IPV4> port 30000:40000 proto tcp comment 'UPnP: LAN TCP Push APIs'
     ```
 
-    *Note: `172.16.0.0/12` is the standard private IP block Docker uses for bridge networks. `172.17.0.1` represents the default Docker gateway on the host.*
+    *Note: `172.16.0.0/12` encapsulates isolated Docker bridge spaces. The `<HOST_LAN_IPV4>` target points directly to the real host physical interface, matching the requirements for services running in `network_mode: host`. The explicit `fe80::/10` IPv6 link-local rule eliminates multi-second Happy Eyeballs fallback lookup delays on modern client devices.*
 
     Apply Changes:
 
     ```bash
     sudo ufw reload
     ```
-
-# --- 5. Apply Changes ---
-sudo ufw reload
-
-*Note: `172.16.0.0/12` isolates Docker bridge networks. The destination `192.168.178.3` directly references the fixed host IP, as Home Assistant requires `network_mode: host` for proper layer-2 discovery. The `fe80::/10` address space targets the immutable hardware-bound IPv6 Link-Local layer, ensuring zero-latency local DNS operations.*
 
 4. **Start the Stack**
 
