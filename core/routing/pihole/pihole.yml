@@ -2,7 +2,7 @@ services:
   # --- Init Service: Prepares permissions for Pi-hole ---
   pihole-init:
     extends:
-      file: ../../shared/templates.yml
+      file: ../../../shared/templates.yml
       service: base-init
     container_name: pihole-init
 
@@ -16,7 +16,7 @@ services:
   # --- Main Service: Pi-hole DNS & Web Interface ---
   pihole:
     extends:
-      file: ../../shared/templates.yml
+      file: ../../../shared/templates.yml
       service: base-secure
     image: pihole/pihole:${PIHOLE_DOCKER_TAG:-2026.06.0}
     container_name: pihole
