@@ -120,13 +120,25 @@ sudo ufw allow in from 172.16.0.0/12 to 172.17.0.1 port 8123 proto tcp comment '
 sudo ufw allow from <LAN_SUBNET_V4> to <HOST_LAN_IPV4> port 53 comment 'Pi-hole: IPv4 DNS'
 sudo ufw allow from fe80::/10 to <HOST_IPV6_LINK_LOCAL> port 53 comment 'Pi-hole: IPv6 DNS'
 
-# Layer 4: Smart Home Multicast & Discovery (UPnP / SSDP)
-sudo ufw allow in proto igmp to any comment 'UPnP: IGMP Tracking'
+# --- Layer 3: Lokale Netzwerkerkennung (Multicast Ingress / Inbound) ---
+# 1. IGMP & IPv6 Core-Erkennung (Essentiell für Netzwerkstabilität)
+sudo ufw allow in proto igmp to any comment 'Smart Home: IGMP Multicast Tracking'
+sudo ufw allow in proto udp to ff02::1 comment 'IPv6: All-Nodes Link-Local Multicast'
+
+# 2. mDNS / Avahi (Port 5353 UDP)
+sudo ufw allow in proto udp to 224.0.0.251 port 5353 comment 'mDNS: IPv4 Multicast'
+sudo ufw allow in proto udp to ff02::fb port 5353 comment 'mDNS: IPv6 Multicast'
+
+# 3. UPnP / SSDP (Port 1900 UDP)
 sudo ufw allow in proto udp to 239.255.255.250 port 1900 comment 'UPnP: IPv4 Multicast'
 sudo ufw allow in proto udp to ff02::c port 1900 comment 'UPnP: IPv6 Multicast'
 
-# Layer 5: Smart Home Gateway Responses
-sudo ufw allow in proto udp from <LAN_SUBNET_V4> port 1900 to <HOST_LAN_IPV4> port 1900 comment 'UPnP: LAN UDP Responses'
+# 4. WS-Discovery (Port 3702 UDP)
+sudo ufw allow in proto udp to 239.255.255.250 port 3702 comment 'WS-Discovery: IPv4 Multicast'
+sudo ufw allow in proto udp to ff02::c port 3702 comment 'WS-Discovery: IPv6 Multicast'
+
+# Layer 4: Smart Home Gateway Responses
+sudo ufw allow in proto udp from <LAN_SUBNET_V4> port 1900 to <HOST_LAN_IPV4> comment 'UPnP: LAN UDP Responses'
 sudo ufw allow in proto tcp from <LAN_SUBNET_V4> to <HOST_LAN_IPV4> port 30000:40000 comment 'UPnP: LAN TCP Push APIs'
 ```
 
