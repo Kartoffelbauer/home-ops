@@ -21,7 +21,6 @@ The stack is modular, splitting services into logical domains:
 │   └── templates.yml      # Base templates enforcing project-wide security standards
 ├── data-manager.sh        # System administration script for backups and restores
 └── docker-compose.yml     # Master entrypoint importing all modular sub-services
-
 ```
 
 ## 🚀 Prerequisites
@@ -33,75 +32,119 @@ The stack is modular, splitting services into logical domains:
 
 ## 🛠️ Quick Start
 
-1. **Configure the Environment**
+### 1. Configure the Environment
 
-    Copy the example environment file and fill in your domains, passwords, and tokens.
-    ```bash
-    cp .env.example .env
-    nano .env
-    ```
+Copy the example environment file and fill in your domains, passwords, and tokens.
 
-2. **Generate Traefik Credentials**
+```bash
+cp .env.example .env
+nano .env
+```
 
-    Generate a password hash for the Traefik dashboard. Replace `admin` with your preferred username.
-    ```bash
-    htpasswd -nB admin
-    ```
+### 2. Generate Traefik Credentials
 
-    Copy the output and paste it into the `TRAEFIK_DASHBOARD_CREDENTIALS` variable in your `.env` file. Ensure you escape any `$` symbols by doubling them (e.g., `$$`).
+Generate a password hash for the Traefik dashboard. Replace `admin` with your preferred username.
 
-3. **Secure Configuration Files**
+```bash
+htpasswd -nB admin
+```
 
-    Restrict permissions on your environment file to protect sensitive data.
-    ```bash
-    chmod 600 .env
-    ```
+Copy the output and paste it into the `TRAEFIK_DASHBOARD_CREDENTIALS` variable in your `.env` file. Ensure you escape any `$` symbols by doubling them (e.g., `$$`).
 
-4. **Configure Firewall (UFW)**
+### 3. Secure Configuration Files
 
-    To secure the host architecture under a Least-Privilege model, local core infrastructure is locked down to private networks, while the Edge Proxy handles public traffic entry points.
+Restrict permissions on your environment file to protect sensitive data.
 
-    Run the following commands to apply the deployment profile:
+```bash
+chmod 600 .env
+```
 
-    ```bash
-    # --- Layer 1: Public Edge Proxy (Traefik Inbound) ---
-    sudo ufw allow proto tcp from any to any port 80 comment 'Traefik: Web HTTP'
-    sudo ufw allow proto tcp from any to any port 443 comment 'Traefik: Web HTTPS (TCP)'
-    sudo ufw allow proto udp from any to any port 443 comment 'Traefik: Web HTTPS (UDP/HTTP3)'
+### 4. Hardening Host & Network Infrastructure
 
-    # --- Layer 2: Internal Proxy Routing (Traefik to Host Services) ---
-    sudo ufw allow in from 172.16.0.0/12 to 172.17.0.1 port 8123 proto tcp comment 'Allow Traefik to Host Home Assistant'
+To ensure absolute cold-start resilience, bypass local gateway loops, and maintain strict least-privilege access, apply these network configurations **prior to service initialization**.
 
-    # --- Layer 3: Core Infrastructure (Pi-hole Local DNS) ---
-    sudo ufw allow from <LAN_IPV4_SUBNET> to <HOST_LAN_IPV4> port 53 proto udp comment 'Pi-hole: IPv4 DNS (UDP)'
-    sudo ufw allow from <LAN_IPV4_SUBNET> to <HOST_LAN_IPV4> port 53 proto tcp comment 'Pi-hole: IPv4 DNS (TCP)'
-    sudo ufw allow from fe80::/10 to <HOST_IPV6_LINK_LOCAL> port 53 proto udp comment 'Pi-hole: IPv6 DNS (UDP)'
-    sudo ufw allow from fe80::/10 to <HOST_IPV6_LINK_LOCAL> port 53 proto tcp comment 'Pi-hole: IPv6 DNS (TCP)'
+#### A. Router Configuration (Gateway Upstream)
 
-    # --- Layer 4: Smart Home Discovery (UPnP / SSDP Multicast) ---
-    sudo ufw allow in proto igmp to any comment 'UPnP: IGMP Tracking'
-    sudo ufw allow in proto udp to 239.255.255.250 port 1900 comment 'UPnP: IPv4 Multicast SSDP'
-    sudo ufw allow in proto udp to ff02::c port 1900 comment 'UPnP: IPv6 Multicast SSDP'
+Apply the following adjustments within your primary router interface (e.g., FRITZ!Box):
 
-    # --- Layer 5: Smart Home Discovery (Inbound Gateway Responses) ---
-    sudo ufw allow in proto udp from <LAN_IPV4_SUBNET> port 1900 to <HOST_LAN_IPV4> port 1900 comment 'UPnP: LAN UDP Responses'
-    sudo ufw allow in proto tcp from <LAN_IPV4_SUBNET> to <HOST_LAN_IPV4> port 30000:40000 proto tcp comment 'UPnP: LAN TCP Push APIs'
-    ```
+* **Local DNS Advertisement:** Configure the router's DHCPv4 server and IPv6 Router Advertisements (RA) to distribute the host machine's IP address as the sole local DNS server. *Do not set this as the router's upstream/WAN DNS to prevent loops.*
+* **Disable DNS Rebind Protection:** Add your self-hosted top-level domain or subdomains (e.g., `*.yourdomain.com`) to the router's **DNS Rebind Protection Exclusions whitelist** so local Traefik requests can resolve to private IPs.
 
-    *Note: `172.16.0.0/12` encapsulates isolated Docker bridge spaces. The `<HOST_LAN_IPV4>` target points directly to the real host physical interface, matching the requirements for services running in `network_mode: host`. The explicit `fe80::/10` IPv6 link-local rule eliminates multi-second Happy Eyeballs fallback lookup delays on modern client devices.*
+#### B. Host Network Configuration (Netplan)
 
-    Apply Changes:
+Save this configuration to `/etc/netplan/01-netcfg.yaml` to enforce local Pi-hole DNS prioritization, drop upstream nameserver hijacking, and lock down static interface suffixes for reliable IPv6 port-forwarding. Replace `<HOST_LAN_IPV4>` with your server's static IP.
 
-    ```bash
-    sudo ufw reload
-    ```
+```yaml
+# /etc/netplan/01-netcfg.yaml
+network:
+  version: 2
+  ethernets:
+    eth0:
+      optional: true
+      dhcp4: true
+      dhcp4-overrides:
+        use-dns: false
+      dhcp6: true
+      dhcp6-overrides:
+        use-dns: false
+      accept-ra: true
+      ra-overrides:
+        use-dns: false
+      ipv6-privacy: false
+      nameservers:
+        addresses:
+          - <HOST_LAN_IPV4>
+          - 1.1.1.1
+```
 
-4. **Start the Stack**
+Apply the network changes immediately:
 
-    Initialize and run all services in the background. The setup uses init-containers to automatically handle directory permissions and initial database setups.
-    ```bash
-    docker compose up -d
-    ```
+```bash
+sudo netplan apply
+```
+
+#### C. Firewall Deployment Profile (UFW)
+
+Execute the following commands to configure the multi-layered security profile. Replace placeholders like `<LAN_SUBNET...>` and `<HOST_IP...>` with your parameters.
+
+```bash
+# Layer 1: Public Edge Proxy (Traefik Inbound)
+sudo ufw allow proto tcp from any to any port 80 comment 'Traefik: HTTP'
+sudo ufw allow proto tcp from any to any port 443 comment 'Traefik: HTTPS (TCP)'
+sudo ufw allow proto udp from any to any port 443 comment 'Traefik: HTTPS (UDP/HTTP3)'
+
+# Layer 2: Internal Proxy Routing (Traefik -> Host Network Services)
+sudo ufw allow in from 172.16.0.0/12 to 172.17.0.1 port 8123 proto tcp comment 'Traefik to Home Assistant'
+
+# Layer 3: Core DNS Infrastructure (Pi-hole)
+sudo ufw allow from <LAN_SUBNET_V4> to <HOST_LAN_IPV4> port 53 comment 'Pi-hole: IPv4 DNS'
+sudo ufw allow from fe80::/10 to <HOST_IPV6_LINK_LOCAL> port 53 comment 'Pi-hole: IPv6 DNS'
+
+# Layer 4: Smart Home Multicast & Discovery (UPnP / SSDP)
+sudo ufw allow in proto igmp to any comment 'UPnP: IGMP Tracking'
+sudo ufw allow in proto udp to 239.255.255.250 port 1900 comment 'UPnP: IPv4 Multicast'
+sudo ufw allow in proto udp to ff02::c port 1900 comment 'UPnP: IPv6 Multicast'
+
+# Layer 5: Smart Home Gateway Responses
+sudo ufw allow in proto udp from <LAN_SUBNET_V4> port 1900 to <HOST_LAN_IPV4> port 1900 comment 'UPnP: LAN UDP Responses'
+sudo ufw allow in proto tcp from <LAN_SUBNET_V4> to <HOST_LAN_IPV4> port 30000:40000 comment 'UPnP: LAN TCP Push APIs'
+```
+
+Apply the ufw rules immediately:
+
+```bash
+sudo netplan apply
+```
+
+> *Note: `172.16.0.0/12` encapsulates isolated Docker bridge spaces. The explicit `fe80::/10` IPv6 link-local rule eliminates multi-second Happy Eyeballs fallback lookup delays on modern client devices.*
+
+### 5. Start the Stack
+
+Initialize and run all services in the background.
+
+```bash
+docker compose up -d
+```
 
 ## 💾 Backup and Restore
 
