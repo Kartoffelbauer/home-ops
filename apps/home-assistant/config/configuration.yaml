@@ -10,11 +10,6 @@ automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
 
-# Load Dashboard UI and auto-generated frontend resources
-lovelace:
-  mode: storage
-  resources: !include resources.yaml
-
 # Reverse Proxy Security Configuration
 http:
   use_x_forwarded_for: true

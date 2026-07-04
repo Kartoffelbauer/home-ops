@@ -51,7 +51,7 @@ services:
       sh -c "
         mkdir -p /data/config && mkdir -p /data/media &&
         cp /config/configuration.yaml /data/config/ &&
-        touch /data/config/automations.yaml /data/config/scripts.yaml /data/config/scenes.yaml /data/config/secrets.yaml /data/config/resources.yaml &&
+        touch /data/config/automations.yaml /data/config/scripts.yaml /data/config/scenes.yaml /data/config/secrets.yaml &&
         chown -R 0:0 /data
       "
     volumes:

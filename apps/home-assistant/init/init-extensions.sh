@@ -5,23 +5,28 @@ set -e
 # Script: init-extensions.sh
 # Environment: Alpine (POSIX sh)
 # Description: Modular installer for Home Assistant integrations and frontend UI
-#              plugins (HACS equivalents) from GitHub releases. Automatically
-#              generates lovelace resources.yaml for frontend modules.
-#
-# Usage: ./init-extensions.sh [type=]<author/repo>[:version] ...
-# Types: integration (default), frontend
-# Example: ./init-extensions.sh smartHomeHub/SmartIR:1.17.6 frontend=piitaya/lovelace-mushroom:latest
+#              plugins. Surgically injects frontend resources directly into
+#              Home Assistant's internal JSON database (.storage).
 # ==============================================================================
 
-# Ensure the target installation directories exist
+# Ensure jq is installed for robust JSON manipulation
+if ! command -v jq >/dev/null 2>&1; then
+  apk add --no-cache -q jq
+fi
+
+# --- Global Configurations ---
 DIR_INTEGRATIONS="/config/custom_components"
 DIR_FRONTEND="/config/www/community"
-FILE_RESOURCES="/config/resources.yaml"
+DIR_STORAGE="/config/.storage"
+FILE_RESOURCES="${DIR_STORAGE}/lovelace_resources"
 
-mkdir -p "$DIR_INTEGRATIONS" "$DIR_FRONTEND"
+mkdir -p "$DIR_INTEGRATIONS" "$DIR_FRONTEND" "$DIR_STORAGE"
 
-# Initialize a clean resources file on every run to prevent duplicate entries
-> "$FILE_RESOURCES"
+# Initialize Home Assistant's resource database if it doesn't exist (e.g., fresh install)
+if [ ! -f "$FILE_RESOURCES" ]; then
+  echo '{"version":1,"minor_version":1,"key":"lovelace_resources","data":{"items":[]}}' > "$FILE_RESOURCES"
+  echo "Initialized fresh lovelace_resources JSON database."
+fi
 
 # ------------------------------------------------------------------------------
 # API Helpers
@@ -57,12 +62,10 @@ install_integration() {
   local ASSET_URLS=$(get_release_assets "$REPO" "$VERSION")
   local ZIP_URL=$(echo "$ASSET_URLS" | grep -i '\.zip$' | head -n 1)
 
-  # Fallback to source code archive if no compiled release asset exists
   if [ -z "$ZIP_URL" ]; then
     ZIP_URL="https://github.com/${REPO}/archive/refs/tags/${VERSION}.zip"
   fi
 
-  echo "Downloading asset..."
   wget -qO "$TEMP_ZIP" "$ZIP_URL"
   mkdir -p "$TEMP_DIR"
   unzip -q -o "$TEMP_ZIP" -d "$TEMP_DIR/"
@@ -77,7 +80,7 @@ install_integration() {
     mv "$MANIFEST_DIR" "$DEST_PATH"
     echo "Successfully installed to ${DEST_PATH}"
   else
-    echo "Error: manifest.json not found inside ${REPO} release archive!"
+    echo "Error: manifest.json not found inside archive!"
     exit 1
   fi
 
@@ -99,38 +102,51 @@ install_frontend() {
   rm -rf "$DEST_PATH"
   mkdir -p "$DEST_PATH"
 
-  # Frontend modules can be packaged as archives or direct source files
   if [ -n "$ZIP_URL" ]; then
     local TEMP_ZIP="/tmp/ext_archive.zip"
     wget -qO "$TEMP_ZIP" "$ZIP_URL"
     unzip -q -o "$TEMP_ZIP" -d "$DEST_PATH/"
     rm -f "$TEMP_ZIP"
-    echo "Extracted zip to ${DEST_PATH}"
   else
     local FOUND_ASSETS=0
     for url in $ASSET_URLS; do
       if echo "$url" | grep -qE '\.(js|css)$'; then
         wget -q -P "$DEST_PATH" "$url"
-        echo "Downloaded $(basename "$url")"
         FOUND_ASSETS=1
       fi
     done
-
     if [ "$FOUND_ASSETS" -eq 0 ]; then
-      echo "Error: No valid frontend assets (.zip, .js, .css) found for ${REPO}."
+      echo "Error: No valid frontend assets found!"
       exit 1
     fi
-    echo "Successfully downloaded to ${DEST_PATH}"
   fi
+  echo "Extracted/Downloaded to ${DEST_PATH}"
 
-  # --- Auto-Generate YAML Resource Entry ---
+  # --- JSON Injection: Safely register resource in Home Assistant ---
   local JS_FILE=$(find "$DEST_PATH" -name "*.js" | head -n 1)
 
   if [ -n "$JS_FILE" ]; then
     local JS_BASENAME=$(basename "$JS_FILE")
-    echo "- url: /local/community/${REPO_NAME}/${JS_BASENAME}" >> "$FILE_RESOURCES"
-    echo "  type: module" >> "$FILE_RESOURCES"
-    echo "Linked ${JS_BASENAME} to resources.yaml"
+    local RESOURCE_URL="/local/community/${REPO_NAME}/${JS_BASENAME}"
+
+    # Check if URL is already registered in the JSON to prevent duplicates
+    local EXISTS=$(jq --arg url "$RESOURCE_URL" '.data.items[]? | select(.url == $url)' "$FILE_RESOURCES")
+
+    if [ -z "$EXISTS" ]; then
+      # Generate a UUID for the new entry
+      local UUID=$(cat /proc/sys/kernel/random/uuid)
+
+      # Inject the new object into the items array
+      local TMP_JSON=$(mktemp)
+      jq --arg url "$RESOURCE_URL" --arg id "$UUID" \
+        '.data.items += [{"id": $id, "type": "module", "url": $url}]' \
+        "$FILE_RESOURCES" > "$TMP_JSON"
+
+      mv "$TMP_JSON" "$FILE_RESOURCES"
+      echo "Injected ${JS_BASENAME} into internal .storage database."
+    else
+      echo "Resource ${JS_BASENAME} already registered. Skipping injection."
+    fi
   fi
 
   echo "----------------------------------------"
@@ -146,7 +162,6 @@ if [ "$#" -eq 0 ]; then
 fi
 
 for arg in "$@"; do
-  # Determine component type and target parameters
   TYPE="integration"
   REPO_VERSION="$arg"
 
@@ -158,15 +173,11 @@ for arg in "$@"; do
   REPO="${REPO_VERSION%%:*}"
   VERSION="${REPO_VERSION##*:}"
 
-  if [ "$REPO" = "$VERSION" ]; then
-    VERSION="latest"
-  fi
-
+  if [ "$REPO" = "$VERSION" ]; then VERSION="latest"; fi
   if [ "$VERSION" = "latest" ] || [ -z "$VERSION" ]; then
     VERSION=$(get_latest_version "$REPO")
   fi
 
-  # Route to respective pipeline
   if [ "$TYPE" = "frontend" ]; then
     install_frontend "$REPO" "$VERSION"
   else
@@ -174,11 +185,7 @@ for arg in "$@"; do
   fi
 done
 
-# ==============================================================================
-# Post-Installation
-# ==============================================================================
-
 echo "Applying permissions (PUID: 0 / PGID: 0)..."
-chown -R 0:0 "$DIR_INTEGRATIONS" "$DIR_FRONTEND" "$FILE_RESOURCES"
+chown -R 0:0 "$DIR_INTEGRATIONS" "$DIR_FRONTEND" "$DIR_STORAGE"
 
 echo "Extension initialization complete."
