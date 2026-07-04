@@ -57,15 +57,43 @@ The stack is modular, splitting services into logical domains:
     chmod 600 .env
     ```
 
-4. **Configure Firewall**
+4. **Configure Firewall (UFW)**
 
-    To allow Traefik to securely communicate with Home Assistant without exposing port `8123` to the public internet, you must explicitly allow the Docker subnet in UFW:
+    To secure the host architecture under a **Least-Privilege** model, local core services (DNS, UPnP) are locked down to the private LAN, while the Traefik reverse proxy handles all external routing without exposing backend ports directly.
+
+    Run the following commands to apply the hardened firewall profile:
 
     ```bash
+    # Allows the proxy container (from Docker bridge) to reach the host network interface
     sudo ufw allow in from 172.16.0.0/12 to 172.17.0.1 port 8123 proto tcp comment 'Allow Traefik to Host Home Assistant'
+
+    # IPv6 Link-Local rule is critical to prevent multi-second website lookup latencies (Happy Eyeballs timeouts)
+    sudo ufw allow from <LAN_IPV4_SUBNET> to <HOST_LAN_IPV4> port 53 proto udp comment 'Pi-hole: LAN IPv4 DNS (UDP)'
+    sudo ufw allow from <LAN_IPV4_SUBNET> to <HOST_LAN_IPV4> port 53 proto tcp comment 'Pi-hole: LAN IPv4 DNS (TCP)'
+    sudo ufw allow from fe80::/10 to <HOST_IPV6_LINK_LOCAL> port 53 proto udp comment 'Pi-hole: LAN IPv6 Link-Local DNS (UDP)'
+    sudo ufw allow from fe80::/10 to <HOST_IPV6_LINK_LOCAL> port 53 proto tcp comment 'Pi-hole: LAN IPv6 Link-Local DNS (TCP)'
+
+    # Standardized global network definitions for multicast routing and device discovery
+    sudo ufw allow in proto igmp to any comment 'UPnP: Allow IGMP Multicast Tracking'
+    sudo ufw allow in proto udp to 239.255.255.250 port 1900 comment 'UPnP: Allow SSDP Multicast Discovery'
+
+    # Template for local smart home gateways (e.g., FRITZ!Box routers). Duplicate block per gateway.
+    sudo ufw allow in proto udp from <GATEWAY_1_IPV4> port 1900 to <HOST_LAN_IPV4> comment 'UPnP: Gateway 1 (UDP Response)'
+    sudo ufw allow in proto tcp from <GATEWAY_1_IPV4> to <HOST_LAN_IPV4> comment 'UPnP: Gateway 1 (TCP Push / API)'
     ```
 
     *Note: `172.16.0.0/12` is the standard private IP block Docker uses for bridge networks. `172.17.0.1` represents the default Docker gateway on the host.*
+
+    Apply Changes:
+
+    ```bash
+    sudo ufw reload
+    ```
+
+# --- 5. Apply Changes ---
+sudo ufw reload
+
+*Note: `172.16.0.0/12` isolates Docker bridge networks. The destination `192.168.178.3` directly references the fixed host IP, as Home Assistant requires `network_mode: host` for proper layer-2 discovery. The `fe80::/10` address space targets the immutable hardware-bound IPv6 Link-Local layer, ensuring zero-latency local DNS operations.*
 
 4. **Start the Stack**
 
