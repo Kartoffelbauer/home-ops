@@ -15,7 +15,7 @@ The stack is modular, splitting services into logical domains:
 │   └── websites/          # Nginx-based static sites
 ├── core/                  # Infrastructure & backend services
 │   ├── database/          # MariaDB & Adminer
-│   ├── routing/           # Traefik Reverse Proxy & Gandi DDNS Updater
+│   ├── routing/           # Traefik Reverse Proxy, Pi-hole and DDNS Updater
 │   └── system/            # Watchtower (auto-updates) & Fallback error pages
 ├── shared/                # Global DRY configurations
 │   └── templates.yml      # Base templates enforcing project-wide security standards
