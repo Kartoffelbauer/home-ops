@@ -18,8 +18,9 @@ DEST_DIR="/apps"
 mkdir -p "$DEST_DIR"
 
 # ------------------------------------------------------------------------------
-# Function: install_extension
-# ... (bleibt gleich wie in deinem Original) ...
+# Installation Pipelines
+# ------------------------------------------------------------------------------
+
 install_extension() {
   local REPO="$1"
   local VERSION="$2"
@@ -91,9 +92,10 @@ for arg in "$@"; do
   install_extension "$REPO" "$VERSION"
 done
 
-# 6. Apply Correct Permissions
-# Ensure files are owned by the oCIS container user (defaulting to 1005)
-# to prevent permission errors during runtime.
+# ==============================================================================
+# Post-Installation
+# ==============================================================================
+
 echo "Applying permissions (PUID: ${OCIS_PUID:-1005} / PGID: ${OCIS_PGID:-1005})..."
 chown -R ${OCIS_PUID:-1005}:${OCIS_PGID:-1005} "$DEST_DIR"
 

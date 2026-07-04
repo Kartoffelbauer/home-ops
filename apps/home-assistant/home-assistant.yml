@@ -65,9 +65,13 @@ services:
 
     # Execution: Download and install custom extensions via script
     command:
-      - "marsh4200/ar_smart_ir:${HOMEASSISTANT_EXT_ARSMARTIR_DOCKER_TAG:-latest}"
-      - "marsh4200/ar_smart_ir_builder:${HOMEASSISTANT_EXT_ARSMARTIR_BUILDER_DOCKER_TAG:-latest}"
-      - "edmogeor/hass-ga-manual-ui:${HOMEASSISTANT_EXT_HASS_GA_MANUAL_UI_DOCKER_TAG:-latest}"
+      # Integration extensions
+      - "integration=marsh4200/ar_smart_ir:${HOMEASSISTANT_EXT_ARSMARTIR_DOCKER_TAG:-latest}"
+      - "integration=marsh4200/ar_smart_ir_builder:${HOMEASSISTANT_EXT_ARSMARTIR_BUILDER_DOCKER_TAG:-latest}"
+      - "integration=edmogeor/hass-ga-manual-ui:${HOMEASSISTANT_EXT_HASS_GA_MANUAL_UI_DOCKER_TAG:-latest}"
+
+      # Frontend extensions
+      - "frontend=piitaya/lovelace-mushroom:${HOMEASSISTANT_EXT_LOVELACE_MUSHROOM_DOCKER_TAG:-latest}"
 
   # --- Main Smart Home Service: Home Assistant ---
   home-assistant:
