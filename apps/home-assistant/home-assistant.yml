@@ -65,7 +65,7 @@ services:
 
     # Configuration: Environment variables
     environment:
-      - GITHUB_TOKEN=${GITHUB_PERSONAL_ACCESS_TOKEN:-}
+      - GITHUB_TOKEN=${GITHUB_PAT:-}
 
     # Execution: Download and install custom extensions via script
     command:
@@ -76,7 +76,6 @@ services:
 
       # Frontend extensions
       - "frontend=custom-cards/button-card:${HOMEASSISTANT_EXT_BUTTON_CARD_DOCKER_TAG:-latest}"
-      - "frontend=piitaya/lovelace-mushroom:${HOMEASSISTANT_EXT_LOVELACE_MUSHROOM_DOCKER_TAG:-latest}"
       - "frontend=piitaya/lovelace-mushroom:${HOMEASSISTANT_EXT_LOVELACE_MUSHROOM_DOCKER_TAG:-latest}"
 
   # --- Main Smart Home Service: Home Assistant ---
