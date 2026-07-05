@@ -63,6 +63,10 @@ services:
     <<: *ha-ext-base
     container_name: home-assistant-ext-init
 
+    # Configuration: Environment variables
+    environment:
+      - GITHUB_TOKEN=${GITHUB_PERSONAL_ACCESS_TOKEN:-}
+
     # Execution: Download and install custom extensions via script
     command:
       # Integration extensions

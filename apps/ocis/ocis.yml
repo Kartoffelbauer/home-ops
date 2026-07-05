@@ -42,8 +42,9 @@ x-ocis-ext-custom: &ocis-ext-custom
   <<: *ocis-ext-base
   image: alpine:${ALPINE_DOCKER_TAG:-3.23}
 
-  # Configuration: Set user and group IDs for oCIS
+  # Configuration: Set user and group IDs for oCIS (Alpabetized)
   environment:
+    GITHUB_TOKEN: "${GITHUB_PERSONAL_ACCESS_TOKEN:-}"
     OCIS_PUID: "${OCIS_PUID:-1005}"
     OCIS_PGID: "${OCIS_PGID:-1005}"
 
