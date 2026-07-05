@@ -74,7 +74,6 @@ services:
       - "frontend=custom-cards/button-card:${HOMEASSISTANT_EXT_BUTTON_CARD_DOCKER_TAG:-latest}"
       - "frontend=piitaya/lovelace-mushroom:${HOMEASSISTANT_EXT_LOVELACE_MUSHROOM_DOCKER_TAG:-latest}"
       - "frontend=piitaya/lovelace-mushroom:${HOMEASSISTANT_EXT_LOVELACE_MUSHROOM_DOCKER_TAG:-latest}"
-      - "frontend=thomasloven/lovelace-card-mod:${HOMEASSISTANT_EXT_LOVELACE_CARD_MOD_DOCKER_TAG:-latest}"
 
   # --- Main Smart Home Service: Home Assistant ---
   home-assistant:
