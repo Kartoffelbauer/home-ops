@@ -6,10 +6,7 @@
 #              and frontend UI plugins. Utilizes a Manifest Cache pattern to
 #              bypass heavy downloads if up-to-date. Rebuilds the internal
 #              .storage/lovelace_resources database dynamically on every boot
-#              to guarantee strict configuration parity.
-#
-# Usage: ./init-extensions.sh [type=author/repo:version] ...
-# Example: ./init-extensions.sh integration=custom-components/hacs:latest frontend=thomasloven/lovelace-card-mod:v4.2.1
+#              using an atomic transaction pattern to prevent empty states.
 # ==============================================================================
 
 # Exit on error (-e), treat unset variables as an error (-u), and fail pipes (-o pipefail)
@@ -44,9 +41,10 @@ if [ ! -f "$MANIFEST_FILE" ] || ! jq . "$MANIFEST_FILE" >/dev/null 2>&1; then
   echo "{}" > "$MANIFEST_FILE"
 fi
 
-# Always reset internal lovelace_resources JSON database to a clean slate
-echo '{"version":1,"minor_version":1,"key":"lovelace_resources","data":{"items":[]}}' > "$FILE_RESOURCES"
-echo "[INIT] Reset internal lovelace_resources database to baseline." >&2
+# Create a safe in-memory staging target for the database rebuild
+# The production file will not be touched until the entire network loop succeeds.
+FILE_RESOURCES_STAGING="${TEMP_WORKSPACE}/lovelace_resources.tmp"
+echo '{"version":1,"minor_version":1,"key":"lovelace_resources","data":{"items":[]}}' > "$FILE_RESOURCES_STAGING"
 
 # ------------------------------------------------------------------------------
 # 2. Cache & API Helpers (DRY)
@@ -64,7 +62,6 @@ github_api_req() {
     wget -qO "$response_file" "https://api.github.com/${endpoint}" || status=$?
   fi
 
-  # Redirect diagnostic strings to stderr to keep stdout completely clean
   if [ "$status" -ne 0 ] || [ ! -f "$response_file" ]; then
     echo "[ERROR] GitHub API request failed (Status: ${status}). Check connectivity or GITHUB_TOKEN." >&2
     exit 1
@@ -91,7 +88,7 @@ get_latest_version() {
 get_cached_data() {
   local repo="$1"
   local key="$2"
-  jq -r --arg r "$repo" --arg k "$key" '.[$r][$k] // empty' "$MANIFEST_FILE"
+  jq -r --arg r "$repo" --arg k "$key" 'if .[$r] then .[$r][$k] else empty end' "$MANIFEST_FILE"
 }
 
 # Atomic cache writing to prevent corruption on unexpected container stops
@@ -151,12 +148,13 @@ inject_lovelace_resource() {
   local uuid=$(cat /proc/sys/kernel/random/uuid)
   local tmp_json="${TEMP_WORKSPACE}/tmp_storage.json"
 
+  # Overwrite the real Lovelace resource file atomically
   jq --arg url "$resource_url" --arg id "$uuid" \
     '.data.items += [{"id": $id, "type": "module", "url": $url}]' \
-    "$FILE_RESOURCES" > "$tmp_json"
+    "$FILE_RESOURCES_STAGING" > "$tmp_json"
 
-  mv "$tmp_json" "$FILE_RESOURCES"
-  echo "[LOVELACE] Injected ${js_basename} into .storage database." >&2
+  mv "$tmp_json" "$FILE_RESOURCES_STAGING"
+  echo "[LOVELACE] Staged resource: ${js_basename}" >&2
 }
 
 # ------------------------------------------------------------------------------
@@ -343,6 +341,11 @@ for repo in $TRACKED_REPOS; do
     mv "$tmp_file" "$MANIFEST_FILE"
   fi
 done
+
+# Overwrite the real Lovelace resource file atomically
+# Only executed if all download routines and queries exited with zero status codes
+echo "[COMMIT] Committing staging Lovelace database transaction to production..." >&2
+mv "$FILE_RESOURCES_STAGING" "$FILE_RESOURCES"
 
 echo "[PERMISSIONS] Applying (PUID: 0 / PGID: 0) to ensure Home Assistant access..." >&2
 chown -R 0:0 "$DIR_INTEGRATIONS" "$DIR_FRONTEND" "$DIR_STORAGE"
