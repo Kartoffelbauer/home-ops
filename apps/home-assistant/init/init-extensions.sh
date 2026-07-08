@@ -27,7 +27,7 @@ MANIFEST_FILE="/config/.ha_extension_manifest.json"
 
 # Ensure runtime dependencies are met
 if ! command -v jq >/dev/null 2>&1; then
-  echo "[INIT] Installing required dependencies: jq, unzip, wget..."
+  echo "[INIT] Installing required dependencies: jq, unzip, wget..." >&2
   apk add --no-cache -q jq unzip wget
 fi
 
@@ -40,13 +40,13 @@ mkdir -p "$DIR_INTEGRATIONS" "$DIR_FRONTEND" "$DIR_STORAGE"
 
 # Validate or reset corrupted Manifest Cache
 if [ ! -f "$MANIFEST_FILE" ] || ! jq . "$MANIFEST_FILE" >/dev/null 2>&1; then
-  echo "[INIT] Manifest cache missing or corrupted. Resetting baseline..."
+  echo "[INIT] Manifest cache missing or corrupted. Resetting baseline..." >&2
   echo "{}" > "$MANIFEST_FILE"
 fi
 
 # Always reset internal lovelace_resources JSON database to a clean slate
 echo '{"version":1,"minor_version":1,"key":"lovelace_resources","data":{"items":[]}}' > "$FILE_RESOURCES"
-echo "[INIT] Reset internal lovelace_resources database to baseline."
+echo "[INIT] Reset internal lovelace_resources database to baseline." >&2
 
 # ------------------------------------------------------------------------------
 # 2. Cache & API Helpers (DRY)
@@ -64,8 +64,9 @@ github_api_req() {
     wget -qO "$response_file" "https://api.github.com/${endpoint}" || status=$?
   fi
 
+  # Redirect diagnostic strings to stderr to keep stdout completely clean
   if [ "$status" -ne 0 ] || [ ! -f "$response_file" ]; then
-    echo "[ERROR] GitHub API request failed (Status: ${status}). Check connectivity or GITHUB_TOKEN."
+    echo "[ERROR] GitHub API request failed (Status: ${status}). Check connectivity or GITHUB_TOKEN." >&2
     exit 1
   fi
 
@@ -77,12 +78,11 @@ get_latest_version() {
   local json_payload=""
   local res=""
 
-  # Isolated assignment blocks to bypass pipeline subshell exit code swallowing
   json_payload=$(github_api_req "repos/${repo}/releases/latest")
   res=$(echo "$json_payload" | jq -r '.tag_name // empty')
 
   if [ -z "$res" ]; then
-    echo "[ERROR] Could not extract valid release tag information for repository: ${repo}"
+    echo "[ERROR] Could not extract valid release tag information for repository: ${repo}" >&2
     exit 1
   fi
   echo "$res"
@@ -91,7 +91,7 @@ get_latest_version() {
 get_cached_data() {
   local repo="$1"
   local key="$2"
-  jq -r --arg r "$repo" --arg k "$key" '.[$r]?[$k] // empty' "$MANIFEST_FILE"
+  jq -r --arg r "$repo" --arg k "$key" '.[$r][$k] // empty' "$MANIFEST_FILE"
 }
 
 # Atomic cache writing to prevent corruption on unexpected container stops
@@ -156,7 +156,7 @@ inject_lovelace_resource() {
     "$FILE_RESOURCES" > "$tmp_json"
 
   mv "$tmp_json" "$FILE_RESOURCES"
-  echo "[LOVELACE] Injected ${js_basename} into .storage database."
+  echo "[LOVELACE] Injected ${js_basename} into .storage database." >&2
 }
 
 # ------------------------------------------------------------------------------
@@ -167,7 +167,7 @@ install_integration() {
   local repo="$1"
   local version="$2"
 
-  echo "[INSTALL] Integration: ${repo} @ ${version}..."
+  echo "[INSTALL] Integration: ${repo} @ ${version}..." >&2
 
   local api_json=$(github_api_req "repos/${repo}/releases/tags/${version}")
   local zip_url=$(echo "$api_json" | jq -r '.assets[]? | select(.name | endswith(".zip")) | .browser_download_url' | head -n 1)
@@ -191,11 +191,10 @@ install_integration() {
 
     update_cache "$repo" "integration" "$version" "$component_name"
 
-    # Secure internal state transmission via temporary tracking workspace file
     echo "$component_name" > "${TEMP_WORKSPACE}/.last_integration"
-    echo "[SUCCESS] Installed component: ${component_name}"
+    echo "[SUCCESS] Installed component: ${component_name}" >&2
   else
-    echo "[ERROR] manifest.json not found inside release archive for ${repo}!"
+    echo "[ERROR] manifest.json not found inside release archive for ${repo}!" >&2
     exit 1
   fi
 }
@@ -207,7 +206,7 @@ install_frontend() {
   local dest_path="${DIR_FRONTEND}/${repo_name}"
   local final_js_file=""
 
-  echo "[INSTALL] Frontend: ${repo} @ ${version}..."
+  echo "[INSTALL] Frontend: ${repo} @ ${version}..." >&2
 
   rm -rf "$dest_path"
   mkdir -p "$dest_path"
@@ -219,9 +218,9 @@ install_frontend() {
     local filename="${js_asset_url##*/}"
     wget -qO "${dest_path}/${filename}" "$js_asset_url"
     final_js_file="${dest_path}/${filename}"
-    echo "[INFO] Downloaded compiled asset directly."
+    echo "[INFO] Downloaded compiled asset directly." >&2
   else
-    echo "[INFO] Initiating deep recursive source scan..."
+    echo "[INFO] Initiating deep recursive source scan..." >&2
     local source_url="https://github.com/${repo}/archive/refs/tags/${version}.zip"
 
     local extracted_dir=$(download_and_extract "$source_url")
@@ -232,7 +231,7 @@ install_frontend() {
       mv "$found_js" "${dest_path}/${filename}"
       final_js_file="${dest_path}/${filename}"
     else
-      echo "[ERROR] No valid frontend .js assets located for ${repo}!"
+      echo "[ERROR] No valid frontend .js assets located for ${repo}!" >&2
       exit 1
     fi
   fi
@@ -241,7 +240,7 @@ install_frontend() {
     local js_basename=$(basename "$final_js_file")
     update_cache "$repo" "frontend" "$version" "$js_basename"
     inject_lovelace_resource "$repo_name" "$js_basename"
-    echo "[SUCCESS] Installed frontend: ${repo_name}"
+    echo "[SUCCESS] Installed frontend: ${repo_name}" >&2
   fi
 }
 
@@ -250,7 +249,7 @@ install_frontend() {
 # ==============================================================================
 
 if [ "$#" -eq 0 ]; then
-  echo "[INIT] No extensions specified to install."
+  echo "[INIT] No extensions specified to install." >&2
   exit 0
 fi
 
@@ -284,11 +283,11 @@ for arg in "$@"; do
     CACHED_JS=$(get_cached_data "$REPO" "js_filename")
 
     if [ "$TARGET_VERSION" = "$CACHED_VERSION" ] && [ -n "$CACHED_JS" ] && [ -d "${DIR_FRONTEND}/${APP_NAME}" ]; then
-      echo "[CACHE] Frontend ${REPO} up-to-date (${TARGET_VERSION}). Injecting resource..."
+      echo "[CACHE] Frontend ${REPO} up-to-date (${TARGET_VERSION}). Injecting resource..." >&2
       inject_lovelace_resource "$APP_NAME" "$CACHED_JS"
       VALID_FRONTENDS="${VALID_FRONTENDS}${APP_NAME}:"
     else
-      echo "[UPDATE] Frontend ${REPO} (Local: ${CACHED_VERSION:-None} -> Remote: ${TARGET_VERSION})"
+      echo "[UPDATE] Frontend ${REPO} (Local: ${CACHED_VERSION:-None} -> Remote: ${TARGET_VERSION})" >&2
       install_frontend "$REPO" "$TARGET_VERSION"
       VALID_FRONTENDS="${VALID_FRONTENDS}${APP_NAME}:"
     fi
@@ -298,10 +297,10 @@ for arg in "$@"; do
     CACHED_FOLDER=$(get_cached_data "$REPO" "folder")
 
     if [ "$TARGET_VERSION" = "$CACHED_VERSION" ] && [ -n "$CACHED_FOLDER" ] && [ -d "${DIR_INTEGRATIONS}/${CACHED_FOLDER}" ]; then
-      echo "[CACHE] Integration ${REPO} up-to-date (${TARGET_VERSION})."
+      echo "[CACHE] Integration ${REPO} up-to-date (${TARGET_VERSION})." >&2
       VALID_INTEGRATIONS="${VALID_INTEGRATIONS}${CACHED_FOLDER}:"
     else
-      echo "[UPDATE] Integration ${REPO} (Local: ${CACHED_VERSION:-None} -> Remote: ${TARGET_VERSION})"
+      echo "[UPDATE] Integration ${REPO} (Local: ${CACHED_VERSION:-None} -> Remote: ${TARGET_VERSION})" >&2
       install_integration "$REPO" "$TARGET_VERSION"
 
       NEW_FOLDER=$(cat "${TEMP_WORKSPACE}/.last_integration")
@@ -314,8 +313,9 @@ done
 # 6. Declarative Reconciliation & Post-Installation
 # ==============================================================================
 
-echo "[CLEANUP] Reconciling declarative state..."
+echo "[CLEANUP] Reconciling declarative state..." >&2
 
+# Only read repos that this script itself manages in its manifest
 TRACKED_REPOS=$(jq -r 'keys[]' "$MANIFEST_FILE" 2>/dev/null || echo "")
 
 for repo in $TRACKED_REPOS; do
@@ -325,26 +325,26 @@ for repo in $TRACKED_REPOS; do
     if [ "$cached_type" = "frontend" ]; then
       folder_name="${repo##*/}"
       if ! echo "$VALID_FRONTENDS" | grep -q ":${folder_name}:"; then
-        echo "[CLEANUP] Removing orphaned frontend: ${folder_name}"
+        echo "[CLEANUP] Removing orphaned frontend: ${folder_name}" >&2
         rm -rf "${DIR_FRONTEND}/${folder_name}"
       fi
     else
       folder_name=$(get_cached_data "$repo" "folder")
       if [ -n "$folder_name" ] && ! echo "$VALID_INTEGRATIONS" | grep -q ":${folder_name}:"; then
-        echo "[CLEANUP] Removing orphaned integration: ${folder_name}"
+        echo "[CLEANUP] Removing orphaned integration: ${folder_name}" >&2
         rm -rf "${DIR_INTEGRATIONS}/${folder_name}"
       fi
     fi
 
     # Delete the repo entry from the manifest to keep the cache clean
-    echo "[CLEANUP] Removing stale manifest cache entry for ${repo}"
+    echo "[CLEANUP] Removing stale manifest cache entry for ${repo}" >&2
     tmp_file="${TEMP_WORKSPACE}/manifest.tmp.json"
     jq --arg r "$repo" 'del(.[$r])' "$MANIFEST_FILE" > "$tmp_file"
     mv "$tmp_file" "$MANIFEST_FILE"
   fi
 done
 
-echo "[PERMISSIONS] Applying (PUID: 0 / PGID: 0) to ensure Home Assistant access..."
+echo "[PERMISSIONS] Applying (PUID: 0 / PGID: 0) to ensure Home Assistant access..." >&2
 chown -R 0:0 "$DIR_INTEGRATIONS" "$DIR_FRONTEND" "$DIR_STORAGE"
 
-echo "[SUCCESS] Extension initialization complete."
+echo "[SUCCESS] Extension initialization complete." >&2
