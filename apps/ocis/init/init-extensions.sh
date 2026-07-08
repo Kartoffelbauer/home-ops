@@ -2,10 +2,12 @@
 # ==============================================================================
 # Script: init-extensions.sh
 # Environment: Alpine (POSIX sh)
-# Description: Declarative, ephemeral installer for oCIS web extensions.
-#              Purges stale state on boot to ensure strict configuration parity.
-#              Downloads, extracts, and provisions valid extensions (identified
-#              by manifest.json) and gracefully handles GitHub API limits.
+# Description: Declarative, idempotent installer for oCIS web extensions.
+#              Utilizes a Manifest Cache pattern to bypass heavy downloads
+#              and unnecessary extraction if extensions are already up-to-date.
+#              Orphaned extensions managed by THIS script are surgically purged
+#              to ensure strict parity, without affecting shared volume assets
+#              installed by other init containers.
 #
 # Usage: ./init-extensions.sh [author/repo:version] ...
 # Example: ./init-extensions.sh LukasHirt/web-app-excalidraw:latest mschlachter/ocis-app-tokens:1.0.0
@@ -15,14 +17,15 @@
 set -euo pipefail
 
 # ------------------------------------------------------------------------------
-# Global Configuration & Environment Initialization
+# 1. Global Configuration & Environment Initialization
 # ------------------------------------------------------------------------------
 
 DEST_DIR="/apps"
+MANIFEST_FILE="${DEST_DIR}/.extension_manifest.json"
 
 # Ensure runtime dependencies are met
 if ! command -v jq >/dev/null 2>&1; then
-  echo "Installing required dependencies: jq, unzip, tar, wget..."
+  echo "[INIT] Installing required dependencies: jq, unzip, tar, wget..."
   apk add --no-cache -q jq unzip tar wget
 fi
 
@@ -30,29 +33,71 @@ fi
 TEMP_WORKSPACE=$(mktemp -d)
 trap 'rm -rf "$TEMP_WORKSPACE"' EXIT
 
-# Enforce strict declarative state: Purge existing modules before initializing
-echo "Purging existing extensions to guarantee a clean baseline..."
-find "$DEST_DIR" -mindepth 1 -delete
+# Initialize and validate the Manifest Cache
 mkdir -p "$DEST_DIR"
+if [ ! -f "$MANIFEST_FILE" ] || ! jq . "$MANIFEST_FILE" >/dev/null 2>&1; then
+  echo "[INIT] Manifest cache missing or corrupted. Resetting baseline..."
+  echo "{}" > "$MANIFEST_FILE"
+fi
 
 # ------------------------------------------------------------------------------
-# API & File System Helpers
+# 2. Cache & API Helpers (DRY)
 # ------------------------------------------------------------------------------
 
-# Wrapper for GitHub API requests to handle optional authentication
+# Wrapper for GitHub API requests with network error handling
 github_api_req() {
   local endpoint="$1"
+  local response_file="${TEMP_WORKSPACE}/api_response.json"
+  local status=0
+
   if [ -n "${GITHUB_TOKEN:-}" ]; then
-    wget -qO- --header="Authorization: Bearer ${GITHUB_TOKEN}" "https://api.github.com/${endpoint}"
+    wget -qO "$response_file" --header="Authorization: Bearer ${GITHUB_TOKEN}" "https://api.github.com/${endpoint}" || status=$?
   else
-    wget -qO- "https://api.github.com/${endpoint}"
+    wget -qO "$response_file" "https://api.github.com/${endpoint}" || status=$?
   fi
+
+  if [ "$status" -ne 0 ] || [ ! -f "$response_file" ]; then
+    echo "[ERROR] GitHub API request failed (Status: ${status}). Check connectivity or GITHUB_TOKEN."
+    exit 1
+  fi
+
+  cat "$response_file"
 }
 
-get_latest_version() {
+get_remote_version() {
   local repo="$1"
-  github_api_req "repos/${repo}/releases/latest" | jq -r '.tag_name // empty'
+  local json_payload=""
+  local res=""
+
+  # Isolated assignment blocks to bypass pipeline subshell exit code swallowing
+  json_payload=$(github_api_req "repos/${repo}/releases/latest")
+  res=$(echo "$json_payload" | jq -r '.tag_name // empty')
+
+  if [ -z "$res" ]; then
+    echo "[ERROR] Could not extract valid release tag information for repository: ${repo}"
+    exit 1
+  fi
+  echo "$res"
 }
+
+get_cached_version() {
+  local repo="$1"
+  jq -r --arg r "$repo" '.[$r]? .version // empty' "$MANIFEST_FILE"
+}
+
+# Atomic cache writing to prevent corruption on unexpected container stops
+update_cache() {
+  local repo="$1"
+  local version="$2"
+  local tmp_file="${TEMP_WORKSPACE}/manifest.tmp.json"
+
+  jq --arg r "$repo" --arg v "$version" '.[$r] = {version: $v}' "$MANIFEST_FILE" > "$tmp_file"
+  mv "$tmp_file" "$MANIFEST_FILE"
+}
+
+# ------------------------------------------------------------------------------
+# 3. File System Pipelines
+# ------------------------------------------------------------------------------
 
 download_and_extract() {
   local url="$1"
@@ -67,10 +112,9 @@ download_and_extract() {
   if echo "$filename" | grep -q -i '\.zip$'; then
     unzip -q -o "$archive" -d "$extract_dir"
   elif echo "$filename" | grep -q -iE '\.(tar\.gz|tgz)$'; then
-    # Suppress unknown macOS extended header warnings by routing stderr to /dev/null
     tar -xzf "$archive" -C "$extract_dir" 2>/dev/null
   else
-    echo "Error: Unsupported archive format for ${filename}"
+    echo "[ERROR] Unsupported archive format for ${filename}"
     exit 1
   fi
 
@@ -78,20 +122,15 @@ download_and_extract() {
   echo "$extract_dir"
 }
 
-# ------------------------------------------------------------------------------
-# Installation Pipelines
-# ------------------------------------------------------------------------------
-
 install_extension() {
   local repo="$1"
   local version="$2"
   local app_name="${repo##*/}"
+  local final_dest="${DEST_DIR}/${app_name}"
 
-  echo "Processing oCIS extension: ${repo}..."
+  echo "[INSTALL] Target: ${repo} @ ${version}..."
 
   local api_json=$(github_api_req "repos/${repo}/releases/tags/${version}")
-
-  # Select the first attached asset that is a zip, tar.gz, or tgz file
   local asset_url=$(echo "$api_json" | jq -r '
     .assets[]? |
     select(.name | test("\\.(zip|tar\\.gz|tgz)$"; "i")) |
@@ -99,67 +138,105 @@ install_extension() {
   ' | head -n 1)
 
   if [ -z "$asset_url" ]; then
-    echo "Error: Could not find a suitable .zip or .tar.gz release asset for ${repo} at version ${version}."
+    echo "[ERROR] No suitable .zip or .tar.gz release asset found for ${repo}."
     exit 1
   fi
 
-  echo "Downloading ${asset_url##*/}..."
+  echo "[INSTALL] Downloading archive from ${asset_url##*/}..."
   local extracted_dir=$(download_and_extract "$asset_url")
-
-  # Locate the sub-directory containing the actual extension manifest
   local manifest_file=$(find "$extracted_dir" -name "manifest.json" | head -n 1)
 
-  if [ -n "$manifest_file" ]; then
-    local component_dir=$(dirname "$manifest_file")
-    mv "$component_dir" "${DEST_DIR}/${app_name}"
-    echo "Successfully installed ${app_name}."
-  else
-    echo "Error: manifest.json not found inside release archive for ${repo}!"
+  if [ -z "$manifest_file" ]; then
+    echo "[ERROR] manifest.json not found inside release archive for ${repo}!"
     exit 1
   fi
 
-  echo "----------------------------------------"
+  local component_dir=$(dirname "$manifest_file")
+
+  # Cleanly overwrite during an update
+  rm -rf "$final_dest"
+  mv "$component_dir" "$final_dest"
+
+  update_cache "$repo" "$version"
+  echo "[SUCCESS] Installed ${app_name} successfully."
 }
 
 # ==============================================================================
-# Main Execution
+# 4. Main Execution (The Cache Logic Controller)
 # ==============================================================================
 
 if [ "$#" -eq 0 ]; then
-  echo "No extensions specified to install."
+  echo "[INIT] No extensions specified to install."
   exit 0
 fi
 
+# POSIX strings to track valid components for declarative cleanup
+VALID_APPS=":"
+VALID_REPOS=":"
+
 for arg in "$@"; do
-  # Parse repository and version
   REPO="${arg%%:*}"
-  VERSION="${arg##*:}"
+  TARGET_VERSION="${arg##*:}"
+  APP_NAME="${REPO##*/}"
+  VALID_REPOS="${VALID_REPOS}${REPO}:"
 
-  # Fallback logic for version mapping
-  if [ "$REPO" = "$VERSION" ]; then
-    VERSION="latest"
+  # Resolve "latest" tag definitions via isolation variable assignments
+  if [ "$REPO" = "$TARGET_VERSION" ] || [ "$TARGET_VERSION" = "latest" ] || [ -z "$TARGET_VERSION" ]; then
+    TARGET_VERSION=$(get_remote_version "$REPO")
   fi
 
-  if [ "$VERSION" = "latest" ] || [ -z "$VERSION" ]; then
-    VERSION=$(get_latest_version "$REPO")
-    if [ -z "$VERSION" ]; then
-      echo "Error: Could not resolve latest version for ${REPO}. Check GitHub API limits or verify GITHUB_TOKEN."
-      exit 1
-    fi
-  fi
+  VALID_APPS="${VALID_APPS}${APP_NAME}:"
+  CACHED_VERSION=$(get_cached_version "$REPO")
 
-  install_extension "$REPO" "$VERSION"
+  # Verify folder existence along with version match to catch uncompleted pipeline updates
+  if [ "$TARGET_VERSION" = "$CACHED_VERSION" ] && [ -d "${DEST_DIR}/${APP_NAME}" ]; then
+    echo "[CACHE] ${REPO} is up-to-date (${TARGET_VERSION}). Skipping download."
+  else
+    echo "[UPDATE] ${REPO} (Local: ${CACHED_VERSION:-None} -> Remote: ${TARGET_VERSION})"
+    install_extension "$REPO" "$TARGET_VERSION"
+  fi
 done
 
 # ==============================================================================
-# Post-Installation
+# 5. Declarative Reconciliation (Manifest-Driven Cleanup)
+# ==============================================================================
+
+echo "[CLEANUP] Reconciling declarative state..."
+
+# Only read repos that this script itself manages in its manifest
+TRACKED_REPOS=$(jq -r 'keys[]' "$MANIFEST_FILE" 2>/dev/null || echo "")
+
+for repo in $TRACKED_REPOS; do
+  folder_name="${repo##*/}"
+
+  # Verify the tracked repository string remains requested inside current container arguments
+  if ! echo "$VALID_REPOS" | grep -q ":${repo}:"; then
+
+    # Avoid wiping asset directory if another custom manifest repo targets the identical folder name
+    if ! echo "$VALID_APPS" | grep -q ":${folder_name}:"; then
+      echo "[CLEANUP] Removing orphaned custom extension: ${folder_name}"
+      if [ -d "${DEST_DIR}/${folder_name}" ]; then
+        rm -rf "${DEST_DIR}/${folder_name}"
+      fi
+    fi
+
+    # Delete the repo entry from the manifest to keep the cache clean
+    echo "[CLEANUP] Removing stale manifest cache entry for ${repo}"
+    tmp_file="${TEMP_WORKSPACE}/manifest.tmp.json"
+    jq --arg r "$repo" 'del(.[$r])' "$MANIFEST_FILE" > "$tmp_file"
+    mv "$tmp_file" "$MANIFEST_FILE"
+  fi
+done
+
+# ==============================================================================
+# 6. Permissions & Post-Installation
 # ==============================================================================
 
 # Default to 1005 if variables are unset to match oCIS standard
 PUID="${OCIS_PUID:-1005}"
 PGID="${OCIS_PGID:-1005}"
 
-echo "Applying permissions (PUID: ${PUID} / PGID: ${PGID}) to ensure oCIS access..."
+echo "[PERMISSIONS] Applying (PUID: ${PUID} / PGID: ${PGID}) to ${DEST_DIR}..."
 chown -R "${PUID}:${PGID}" "$DEST_DIR"
 
-echo "Extension initialization complete."
+echo "[SUCCESS] Extension initialization complete."
