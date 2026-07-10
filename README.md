@@ -72,10 +72,10 @@ Apply the following adjustments within your primary router interface (e.g., FRIT
 
 #### B. Host Network Configuration (Netplan)
 
-Save this configuration to `/etc/netplan/01-netcfg.yaml` to enforce local Pi-hole DNS prioritization, drop upstream nameserver hijacking, and lock down static interface suffixes for reliable IPv6 port-forwarding. Replace `<HOST_LAN_IPV4>` with your server's static IP.
+Save this configuration to `/etc/netplan/99-netcfg.yaml` to enforce local Pi-hole DNS prioritization, drop upstream nameserver hijacking, and lock down static interface suffixes for reliable IPv6 port-forwarding. Replace `<HOST_LAN_IPV4>` with your server's static IP.
 
 ```yaml
-# /etc/netplan/01-netcfg.yaml
+# /etc/netplan/99-netcfg.yaml
 network:
   version: 2
   ethernets:
@@ -97,10 +97,10 @@ network:
           - 1.1.1.1
 ```
 
-Apply the network changes immediately:
+Set correct permissions & apply the network changes immediately:
 
 ```bash
-sudo netplan apply
+sudo chmod 600 99-netcfg.yaml && sudo netplan apply
 ```
 
 #### C. Firewall Deployment Profile (UFW)
