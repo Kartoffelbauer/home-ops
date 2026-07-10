@@ -65,7 +65,7 @@ services:
 
     # Configuration: Environment variables
     environment:
-      - GITHUB_TOKEN=${GITHUB_PAT:-}
+      GITHUB_TOKEN: ${GITHUB_PAT:-}
 
     # Execution: Download and install custom extensions via script
     command:
