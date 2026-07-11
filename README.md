@@ -118,7 +118,9 @@ sudo ufw allow in from 172.16.0.0/12 to 172.17.0.1 port 8123 proto tcp comment '
 
 # Layer 3: Core DNS Infrastructure (Pi-hole)
 sudo ufw allow from <LAN_SUBNET_V4> to <HOST_LAN_IPV4> port 53 comment 'Pi-hole: IPv4 DNS'
+sudo ufw reject from <LAN_SUBNET_V4> to <HOST_LAN_IPV4> port 853 proto tcp comment 'Pi-hole: Reject DoT IPv4'
 sudo ufw allow from fe80::/10 to <HOST_IPV6_LINK_LOCAL> port 53 comment 'Pi-hole: IPv6 DNS'
+sudo ufw reject from fe80::/10 to <HOST_IPV6_LINK_LOCAL> port 853 proto tcp comment 'Pi-hole: Reject DoT IPv6'
 
 # --- Layer 3: Lokale Netzwerkerkennung (Multicast Ingress / Inbound) ---
 # 1. IGMP & IPv6 Core-Erkennung (Essentiell für Netzwerkstabilität)
