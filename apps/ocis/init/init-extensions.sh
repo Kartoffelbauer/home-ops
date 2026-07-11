@@ -65,7 +65,7 @@ github_api_req() {
   cat "$response_file"
 }
 
-get_remote_version() {
+get_latest_version() {
   local repo="$1"
   local json_payload=""
   local res=""
