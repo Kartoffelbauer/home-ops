@@ -124,7 +124,7 @@ services:
       # --- 4. CERTIFICATE RESOLVERS (Let's Encrypt via DNS-01 Challenge) ---
       - "--certificatesresolvers.resolver.acme.caServer=${TRAEFIK_ACME_CASERVER:-https://acme-staging-v02.api.letsencrypt.org/directory}"
       - "--certificatesresolvers.resolver.acme.dnschallenge=true"
-      - "--certificatesresolvers.resolver.acme.dnschallenge.propagation.delayBeforeChecks=10s"
+      - "--certificatesresolvers.resolver.acme.dnschallenge.propagation.delayBeforeChecks=30s"
       - "--certificatesresolvers.resolver.acme.dnschallenge.provider=gandiv5"
       - "--certificatesresolvers.resolver.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
       - "--certificatesresolvers.resolver.acme.email=${TRAEFIK_ACME_EMAIL:?}"
