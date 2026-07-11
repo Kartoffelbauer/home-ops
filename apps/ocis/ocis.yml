@@ -336,14 +336,16 @@ services:
     cap_drop:
       - ALL
     cap_add:
-      - CHOWN
-      - SETUID
-      - SETGID
-      - FOWNER
       - AUDIT_WRITE
+      - CHOWN
       - DAC_OVERRIDE
-      - NET_BIND_SERVICE
+      - FOWNER
       - KILL
+      - NET_BIND_SERVICE
+      - SETFCAP
+      - SETGID
+      - SETUID
+      - SYS_CHROOT
 
     # Lifecycle: Wait for database to be ready
     depends_on:
