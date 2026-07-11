@@ -157,6 +157,7 @@ services:
       - "traefik.http.routers.redirect-primary.priority=1"
       - "traefik.http.routers.redirect-primary.rule=HostRegexp(`^.+\\.${DOMAIN_PRIMARY:-localhost}$$`) || Host(`${DOMAIN_PRIMARY:-localhost}`)"
       - "traefik.http.routers.redirect-primary.service=noop@internal"
+      - "traefik.http.routers.redirect-primary.tls.certresolver=resolver"
       - "traefik.http.routers.redirect-primary.tls.domains[0].main=${DOMAIN_PRIMARY:-localhost}"
       - "traefik.http.routers.redirect-primary.tls.domains[0].sans=*.${DOMAIN_PRIMARY:-localhost}"
 
@@ -166,6 +167,7 @@ services:
       - "traefik.http.routers.redirect-secondary.priority=1"
       - "traefik.http.routers.redirect-secondary.rule=HostRegexp(`^.+\\.${DOMAIN_SECONDARY:-localhost}$$`) || Host(`${DOMAIN_SECONDARY:-localhost}`)"
       - "traefik.http.routers.redirect-secondary.service=noop@internal"
+      - "traefik.http.routers.redirect-primary.tls.certresolver=resolver"
       - "traefik.http.routers.redirect-secondary.tls.domains[0].main=${DOMAIN_SECONDARY:-localhost}"
       - "traefik.http.routers.redirect-secondary.tls.domains[0].sans=*.${DOMAIN_SECONDARY:-localhost}"
 
