@@ -4,7 +4,7 @@ services:
     extends:
       file: ../../shared/templates.yml
       service: base-secure-outbound
-    image: ghcr.io/kartoffelbauer/docker-roundcube-custom:${ROUNDCUBE_DOCKER_TAG:-1.6-nonroot}
+    image: ghcr.io/kartoffelbauer/docker-roundcube-custom:${ROUNDCUBE_DOCKER_TAG:-1.7-nonroot}
     container_name: roundcube
 
     # Security: Run as non-root user
