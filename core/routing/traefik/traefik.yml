@@ -106,6 +106,10 @@ services:
       - "--entrypoints.websecure.http.encodedCharacters.allowEncodedSlash=true"
       - "--entrypoints.websecure.http.middlewares=sec-public@file"
       - "--entrypoints.websecure.http.tls.certresolver=resolver"
+      - "--entrypoints.websecure.http.tls.domains[0].main=${DOMAIN_PRIMARY:-localhost}"
+      - "--entrypoints.websecure.http.tls.domains[0].sans=*.${DOMAIN_PRIMARY:-localhost}"
+      - "--entrypoints.websecure.http.tls.domains[1].main=${DOMAIN_SECONDARY:-localhost}"
+      - "--entrypoints.websecure.http.tls.domains[1].sans=*.${DOMAIN_SECONDARY:-localhost}"
       - "--entrypoints.websecure.transport.respondingTimeouts.idleTimeout=3m"
       - "--entrypoints.websecure.transport.respondingTimeouts.readTimeout=12h"
       - "--entrypoints.websecure.transport.respondingTimeouts.writeTimeout=12h"
@@ -157,9 +161,6 @@ services:
       - "traefik.http.routers.redirect-primary.priority=1"
       - "traefik.http.routers.redirect-primary.rule=HostRegexp(`^.+\\.${DOMAIN_PRIMARY:-localhost}$$`) || Host(`${DOMAIN_PRIMARY:-localhost}`)"
       - "traefik.http.routers.redirect-primary.service=noop@internal"
-      - "traefik.http.routers.redirect-primary.tls.certresolver=resolver"
-      - "traefik.http.routers.redirect-primary.tls.domains[0].main=${DOMAIN_PRIMARY:-localhost}"
-      - "traefik.http.routers.redirect-primary.tls.domains[0].sans=*.${DOMAIN_PRIMARY:-localhost}"
 
       # Priority 1: Secondary Domain Global Redirects (Naked domains & Typos -> Web Subdomain)
       - "traefik.http.routers.redirect-secondary.entrypoints=websecure"
@@ -167,9 +168,6 @@ services:
       - "traefik.http.routers.redirect-secondary.priority=1"
       - "traefik.http.routers.redirect-secondary.rule=HostRegexp(`^.+\\.${DOMAIN_SECONDARY:-localhost}$$`) || Host(`${DOMAIN_SECONDARY:-localhost}`)"
       - "traefik.http.routers.redirect-secondary.service=noop@internal"
-      - "traefik.http.routers.redirect-primary.tls.certresolver=resolver"
-      - "traefik.http.routers.redirect-secondary.tls.domains[0].main=${DOMAIN_SECONDARY:-localhost}"
-      - "traefik.http.routers.redirect-secondary.tls.domains[0].sans=*.${DOMAIN_SECONDARY:-localhost}"
 
     # State: Persistent data, routing infrastructure map, and temporary in-memory systems
     extra_hosts:
