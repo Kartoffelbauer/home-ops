@@ -172,6 +172,10 @@ services:
     networks:
       - ocis-internal
 
+    # Tika watchdog needs to be heigher for a low power CPU
+    environment:
+      TIKA_CHILD_PROCESS_TIMEOUT_MS: "300000"
+
     # Monitoring: Internal check to ensure the app is healthy
     healthcheck:
       test: "wget -qO /dev/null http://127.0.0.1:9998/version || exit 1"
