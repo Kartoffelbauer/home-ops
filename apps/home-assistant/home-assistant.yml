@@ -114,6 +114,7 @@ services:
     # State: Mount config and media directories, plus read-only access to D-Bus
     volumes:
       - ./data/config:/config
+      - ./config/streamline-templates.yaml:/config/www/community/streamline-card/streamline_templates.yaml:ro
       - ./data/media:/media
       - /run/dbus:/run/dbus:ro
     tmpfs:

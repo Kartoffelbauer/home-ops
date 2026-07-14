@@ -1,0 +1,203 @@
+# ==============================================================================
+# Template: washdata_appliance
+# Description: Fully decoupled, safe UI template with structural defaults.
+# ==============================================================================
+
+washdata_appliance:
+  default:
+    - name: Appliance
+    - icon_base: mdi:washing-machine
+    - sensor_state_entity: none
+    - sensor_program_entity: none
+    - sensor_power_entity: none
+    - sensor_progress_entity: none
+    - sensor_remaining_time_entity: none
+    - sensor_total_duration_entity: none
+    - sensor_elapsed_time_entity: none
+    - sensor_phase_entity: none
+  card:
+    type: custom:entity-progress-card-template
+    entity: "[[sensor_state_entity]]"
+    grid_options:
+      columns: full
+    tap_action:
+      action: more-info
+    icon_tap_action:
+      action: more-info
+    name: >-
+      {# Fetch state and diagnostic data using dedicated entity inputs #}
+      {% set status = states('[[sensor_state_entity]]') | lower %}
+      {% set program = states('[[sensor_program_entity]]') %}
+      {% set power = states('[[sensor_power_entity]]') | float(0) | round(0) %}
+      {% set ACTIVE_STATES = ['starting', 'running', 'rinse', 'paused', 'user_paused', 'ending'] %}
+      {% set prg_text = program if program and program | lower not in ['unknown', 'off', 'auto_detect', 'detecting...', 'none', 'unavailable'] else 'Detecting...' %}
+
+      <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+        <span>[[name]]</span>
+        {% if status in ACTIVE_STATES or status == 'anti_wrinkle' %}
+          <span style="font-size: 0.85em; color: var(--secondary-text-color); font-weight: normal; text-align: right;">
+            {{ prg_text }} · {{ power }} W
+          </span>
+        {% endif %}
+      </div>
+    secondary: >-
+      {# Retrieve state, progress, and runtime info from specific sensors #}
+      {% set status = states('[[sensor_state_entity]]') | lower %}
+      {% set pct = states('[[sensor_progress_entity]]') | float(0) %}
+      {% set time = states('[[sensor_remaining_time_entity]]') %}
+      {% set ACTIVE_STATES = ['starting', 'running', 'rinse', 'paused', 'user_paused', 'ending'] %}
+
+      {% if status in ACTIVE_STATES and pct == 0 %}
+        {% set el_min = (states('[[sensor_elapsed_time_entity]]') | int(0)) // 60 %}
+        {{ "{}:{:02d}".format(el_min // 60, el_min % 60) }} elapsed
+
+      {% elif status in ACTIVE_STATES %}
+        {% set rem_min = time | int(0) %}
+        {% set tot_min = states('[[sensor_total_duration_entity]]') | int(0) %}
+        {% set el_min = tot_min - rem_min %}
+        {% set prefix = 'Paused · ' if status in ['paused', 'user_paused'] else ('Starting · ' if status == 'starting' else ('Finishing · ' if status == 'ending' else '')) %}
+
+        {{ prefix }}{{ "{}:{:02d}/{}:{:02d}".format(el_min // 60, el_min % 60, tot_min // 60, tot_min % 60) }}
+
+        {% if time | lower not in ['unknown', 'unavailable'] and rem_min > 0 %}
+          · Ready at {{ (as_timestamp(now()) + rem_min * 60) | timestamp_custom('%H:%M', true) }}
+        {% endif %}
+
+      {% elif status == 'anti_wrinkle' %}
+        Anti-Wrinkle · Ready to unload
+
+      {% elif status in ['clean', 'finished'] %}
+        Finished · Ready to unload
+
+      {% elif status in ['interrupted', 'force_stopped'] %}
+        {{ status | replace('_', ' ') | title }}
+
+      {% elif status == 'delay_wait' %}
+        Delayed Start
+
+      {% elif status in ['idle', 'unknown'] %}
+        Standby
+
+      {% else %}
+        Ready / Empty
+      {% endif %}
+    percent: >-
+      {# Calculate progress bar completion percentage #}
+      {% set status = states('[[sensor_state_entity]]') | lower %}
+      {% set pct = states('[[sensor_progress_entity]]') | float(0) %}
+      {% set ACTIVE_STATES = ['starting', 'running', 'rinse', 'paused', 'user_paused', 'ending'] %}
+
+      {% if status in ACTIVE_STATES and pct == 0 %}
+        100
+      {% elif status in ['clean', 'finished', 'anti_wrinkle'] %}
+        100
+      {% else %}
+        {{ pct | int }}
+      {% endif %}
+    icon: |-
+      {# Determine card icon based on device state #}
+      {% set status = states('[[sensor_state_entity]]') | lower %}
+      {% if status in ['off', 'force_stopped', 'interrupted'] %}
+        [[icon_base]]-off
+      {% elif status in ['clean', 'finished'] %}
+        [[icon_base]]-alert
+      {% else %}
+        [[icon_base]]
+      {% endif %}
+    color: >-
+      {# Map device state to appropriate theme colors #}
+      {% set status = states('[[sensor_state_entity]]') | lower %}
+      {% set ACTIVE_STATES = ['starting', 'running', 'rinse', 'paused', 'user_paused', 'ending'] %}
+
+      {% if status in ['interrupted', 'force_stopped'] %}
+        red
+      {% elif status in ['paused', 'user_paused'] %}
+        orange
+      {% elif status in ACTIVE_STATES %}
+        blue
+      {% elif status == 'anti_wrinkle' %}
+        teal
+      {% elif status in ['clean', 'finished'] %}
+        green
+      {% else %}
+        disabled
+      {% endif %}
+    bar_color: >-
+      {# Dynamically color-code the progress bar #}
+      {% set status = states('[[sensor_state_entity]]') | lower %}
+      {% set pct = states('[[sensor_progress_entity]]') | float(0) %}
+      {% set ACTIVE_STATES = ['starting', 'running', 'rinse', 'paused', 'user_paused', 'ending'] %}
+
+      {% if status in ['interrupted', 'force_stopped'] %}
+        red
+      {% elif status in ['paused', 'user_paused'] or (status in ACTIVE_STATES and pct == 0) %}
+        orange
+      {% elif status == 'anti_wrinkle' %}
+        teal
+      {% elif status in ['clean', 'finished'] %}
+        green
+      {% else %}
+        primary
+      {% endif %}
+    bar_effect: >-
+      {# Apply distinct visual effects depending on active cycles #}
+      {% set status = states('[[sensor_state_entity]]') | lower %}
+      {% set ACTIVE_STATES = ['starting', 'running', 'rinse', 'paused', 'user_paused', 'ending'] %}
+
+      {% if (status in ACTIVE_STATES and states('[[sensor_progress_entity]]') | float(0) == 0) or status == 'anti_wrinkle' %}
+        shimmer, radius
+      {% else %}
+        radius
+      {% endif %}
+    badge_icon: >-
+      {# Select sub-icon badge corresponding to the current state or active sub-phase #}
+      {% set status = states('[[sensor_state_entity]]') | lower %}
+      {% set phase = states('[[sensor_phase_entity]]') | lower %}
+
+      {% if status == 'force_stopped' %}
+        mdi:stop-circle
+      {% elif status == 'interrupted' %}
+        mdi:flash-alert
+      {% elif status in ['paused', 'user_paused'] %}
+        mdi:pause
+      {% elif status == 'delay_wait' %}
+        mdi:timer-sand
+      {% elif status == 'starting' %}
+        mdi:play-circle-outline
+      {% elif status == 'ending' %}
+        mdi:flag-checkered
+      {% elif status == 'anti_wrinkle' %}
+        mdi:hanger
+      {% elif status in ['running', 'rinse'] %}
+        {% if phase == 'heating' %}
+          mdi:stove
+        {% elif phase in ['rinse', 'rinsing'] or status == 'rinse' %}
+          mdi:water-opacity
+        {% elif phase in ['spin', 'spinning'] %}
+          mdi:sync
+        {% else %}
+          mdi:play
+        {% endif %}
+      {% elif status in ['clean', 'finished'] %}
+        mdi:check
+      {% else %}
+        mdi:power-sleep
+      {% endif %}
+    badge_color: >-
+      {# Define badge color rules #}
+      {% set status = states('[[sensor_state_entity]]') | lower %}
+      {% set ACTIVE_STATES = ['starting', 'running', 'rinse', 'paused', 'user_paused', 'ending'] %}
+
+      {% if status in ['interrupted', 'force_stopped'] %}
+        red
+      {% elif status in ['paused', 'user_paused', 'delay_wait'] %}
+        orange
+      {% elif status in ACTIVE_STATES %}
+        blue
+      {% elif status == 'anti_wrinkle' %}
+        teal
+      {% elif status in ['clean', 'finished'] %}
+        green
+      {% else %}
+        disabled
+      {% endif %}
