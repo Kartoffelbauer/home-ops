@@ -1,4 +1,62 @@
 services:
+  # --- Init Service: Prepares permissions for roundcubes database ---
+  roundcube-database-init:
+    extends:
+      file: ../../shared/templates.yml
+      service: base-init
+    container_name: roundcube-database-init
+
+    # Execution: Create directory and fix permissions
+    command: sh -c "chown -R ${ROUNDCUBE_PUID:-1005}:${ROUNDCUBE_PGID:-1005} /data"
+
+    # State: Mount database directory
+    volumes:
+      - ./data:/data
+
+  # --- Internal Database Service ---
+  roundcube-database:
+    extends:
+      file: ../../shared/templates.yml
+      service: base-secure
+    image: mariadb:${MARIADB_DOCKER_TAG:-11.4}
+    container_name: roundcube-database
+
+    # Security: Run as non-root user, lock filesystem
+    user: "${ROUNDCUBE_PUID:-1005}:${ROUNDCUBE_PGID:-1005}"
+    read_only: true
+
+    # Lifecycle: Wait for permissions to be fixed
+    depends_on:
+      roundcube-database-init:
+        condition: service_completed_successfully
+
+    # Connectivity: Expose internal network for other containers
+    networks:
+      - roundcube-internal
+
+    # Configuration: Natively auto-creates the databases and users on first startup (Alphabetized)
+    environment:
+      # Core Database Settings
+      MARIADB_AUTO_UPGRADE: "true"
+      MARIADB_ROOT_PASSWORD: "${MARIADB_ROOT_PASSWORD:?}"
+
+      # Roundcube App Database & User Settings
+      MARIADB_DATABASE: "roundcubemail"
+      MARIADB_PASSWORD: "${ROUNDCUBE_DB_PASSWORD:?}"
+      MARIADB_USER: "roundcube"
+
+    # State: Mount the database directory and in-memory temp areas
+    volumes:
+      - ./data:/var/lib/mysql
+    tmpfs:
+      - /tmp
+      - /run/mysqld
+
+    # Monitoring: Built-in check to ensure the InnoDB engine is fully initialized
+    healthcheck:
+      test: "healthcheck.sh --connect --innodb_initialized"
+
+
   # --- Main Web Service: Roundcube Webmail ---
   roundcube:
     extends:
@@ -12,22 +70,22 @@ services:
 
     # Lifecycle: Wait for database to be ready
     depends_on:
-      mariadb:
+      roundcube-database:
         condition: service_healthy
 
     # Connectivity: Public facing proxy and internal database network
     networks:
       - traefik-public
-      - mariadb-internal
+      - roundcube-internal
 
     # Configuration: Roundcube features, mail server bindings, database, and OAuth2 (Alphabetized)
     environment:
       GANDIV5_PERSONAL_ACCESS_TOKEN: "${GANDIV5_PERSONAL_ACCESS_TOKEN:?}"
       ROUNDCUBEMAIL_COMPOSER_PLUGINS: "roundcube/carddav"
-      ROUNDCUBEMAIL_DB_HOST: "mariadb"
+      ROUNDCUBEMAIL_DB_HOST: "roundcube-database"
       ROUNDCUBEMAIL_DB_NAME: "roundcubemail"
       ROUNDCUBEMAIL_DB_PASSWORD: "${ROUNDCUBE_DB_PASSWORD:?}"
-      ROUNDCUBEMAIL_DB_TYPE: "mysql"
+      ROUNDCUBEMAIL_DB_TYPE: "mysqli"
       ROUNDCUBEMAIL_DB_USER: "roundcube"
       ROUNDCUBEMAIL_DEFAULT_HOST: "${ROUNDCUBE_IMAP_HOST:?}"
       ROUNDCUBEMAIL_DEFAULT_PORT: "${ROUNDCUBE_IMAP_PORT:-993}"
@@ -42,6 +100,8 @@ services:
       - ./config/config.inc.php:/var/roundcube/config/config.inc.php:ro
     tmpfs:
       - /tmp
+      - /var/tmp
+      - /run
 
     # Routing: Traefik dynamic configuration (Alphabetized)
     labels:
@@ -57,4 +117,4 @@ services:
 # --- Global Network Definitions ---
 networks:
   traefik-public:
-  mariadb-internal:
+  roundcube-internal:

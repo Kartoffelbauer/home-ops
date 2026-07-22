@@ -45,8 +45,8 @@ x-ocis-ext-custom: &ocis-ext-custom
   # Configuration: Set user and group IDs for oCIS (Alpabetized)
   environment:
     GITHUB_TOKEN: "${GITHUB_PERSONAL_ACCESS_TOKEN:-}"
-    OCIS_PUID: "${OCIS_PUID:-1005}"
-    OCIS_PGID: "${OCIS_PGID:-1005}"
+    OCIS_PUID: "${OCIS_PUID:-1004}"
+    OCIS_PGID: "${OCIS_PGID:-1004}"
 
   # Execution: Set base entrypoint
   entrypoint:
@@ -79,7 +79,7 @@ services:
     container_name: ocis-init
 
     # Execution: Set correct ownership for oCIS directories
-    command: sh -c "chown -R ${OCIS_PUID:-1005}:${OCIS_PGID:-1005} /ocis-config /ocis-data /ocis-apps"
+    command: sh -c "chown -R ${OCIS_PUID:-1004}:${OCIS_PGID:-1004} /ocis-config /ocis-data /ocis-apps"
 
     # State: Mount configuration and data directories
     volumes:
@@ -185,7 +185,7 @@ services:
     container_name: ocis
 
     # Security: Run as non-root user
-    user: "${OCIS_PUID:-1005}:${OCIS_PGID:-1005}"
+    user: "${OCIS_PUID:-1004}:${OCIS_PGID:-1004}"
 
     # Lifecycle: Wait for extensions and tika
     depends_on:
@@ -280,7 +280,7 @@ services:
     container_name: ocis-collaboration-oo
 
     # Security: Run as non-root user
-    user: "${OCIS_PUID:-1005}:${OCIS_PGID:-1005}"
+    user: "${OCIS_PUID:-1004}:${OCIS_PGID:-1004}"
 
     # Lifecycle: Wait for oCIS core and OnlyOffice to be ready
     depends_on:
