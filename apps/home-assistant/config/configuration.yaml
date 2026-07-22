@@ -20,7 +20,3 @@ http:
 # Logger
 logger:
   default: !env_var HOMEASSISTANT_LOG_LEVEL
-
-# Recorder
-recorder:
-  db_url: !env_var HOMEASSISTANT_DB_URL

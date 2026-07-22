@@ -43,16 +43,11 @@ services:
       MARIADB_ROOT_PASSWORD: "${MARIADB_ROOT_PASSWORD:?}"
 
       # App 1: Roundcube Variables
-      HOMEASSISTANT_DB_NAME: "homeassistant"
-      HOMEASSISTANT_DB_PASSWORD: "${HOMEASSISTANT_DB_PASSWORD:?}"
-      HOMEASSISTANT_DB_USER: "homeassistant"
-
-      # App 2: Roundcube Variables
       ROUNDCUBE_DB_NAME: "roundcubemail"
       ROUNDCUBE_DB_PASSWORD: "${ROUNDCUBE_DB_PASSWORD:?}"
       ROUNDCUBE_DB_USER: "roundcube"
 
-      # App 3: OnlyOffice Variables
+      # App 2: OnlyOffice Variables
       ONLYOFFICE_DB_NAME: "onlyoffice"
       ONLYOFFICE_DB_PASSWORD: "${OCIS_ONLYOFFICE_DB_PASSWORD:?}"
       ONLYOFFICE_DB_USER: "onlyoffice"

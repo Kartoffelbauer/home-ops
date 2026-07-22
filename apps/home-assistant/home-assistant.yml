@@ -101,14 +101,11 @@ services:
 
     # Lifecycle: Wait for database and extensions
     depends_on:
-      mariadb:
-        condition: service_healthy
       home-assistant-ext-init:
         condition: service_completed_successfully
 
     # Configuration: Environment variables
     environment:
-      HOMEASSISTANT_DB_URL: "mysql://homeassistant:${HOMEASSISTANT_DB_PASSWORD:?}@127.0.0.1:3306/homeassistant?charset=utf8mb4"
       HOMEASSISTANT_LOG_LEVEL: "${HOMEASSISTANT_LOG_LEVEL:-info}"
 
     # State: Mount config and media directories, plus read-only access to D-Bus
