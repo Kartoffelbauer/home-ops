@@ -1,12 +1,12 @@
 services:
-  # --- Init Service: Prepares permissions for roundcubes database ---
+  # --- Init Service: Prepares permissions for internal database ---
   roundcube-database-init:
     extends:
       file: ../../shared/templates.yml
       service: base-init
     container_name: roundcube-database-init
 
-    # Execution: Create directory and fix permissions
+    # Execution: Fix permissions on the database directory
     command: sh -c "chown -R ${ROUNDCUBE_PUID:-1005}:${ROUNDCUBE_PGID:-1005} /data"
 
     # State: Mount database directory
