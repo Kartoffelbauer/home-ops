@@ -14,7 +14,6 @@ The stack is modular, splitting services into logical domains:
 │   ├── roundcube/         # Webmail client
 │   └── websites/          # Nginx-based static sites
 ├── core/                  # Infrastructure & backend services
-│   ├── database/          # MariaDB & Adminer
 │   ├── routing/           # Traefik Reverse Proxy, Pi-hole and DDNS Updater
 │   └── system/            # Watchtower (auto-updates) & Fallback error pages
 ├── shared/                # Global DRY configurations
