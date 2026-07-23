@@ -7,7 +7,7 @@ services:
     container_name: pihole-init
 
     # Execution: Create directory structure and assign FTL user permissions
-    command: sh -c "mkdir -p /data/etc-pihole && chown -R ${PIHOLE_PUID:-1002}:${PIHOLE_PGID:-1002} /data"
+    command: sh -c "chown -R ${PIHOLE_PUID:-1002}:${PIHOLE_PGID:-1002} /data"
 
     # State: Mount local data directory
     volumes:
@@ -107,7 +107,7 @@ services:
 
     # State: Persistent FTL config
     volumes:
-      - ./data/etc-pihole:/etc/pihole
+      - ./data:/etc/pihole
 
     # Monitoring: Internal check targeting local DNS resolution directly
     healthcheck:
