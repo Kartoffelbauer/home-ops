@@ -100,8 +100,6 @@ services:
       - ./config/config.inc.php:/var/roundcube/config/config.inc.php:ro
     tmpfs:
       - /tmp
-      - /var/tmp
-      - /run
 
     # Routing: Traefik dynamic configuration (Alphabetized)
     labels:
