@@ -1,7 +1,7 @@
 # ==============================================================================
 # External Services: Minecraft Server Management (MCSM)
 # Description: Reverse proxies traffic exiting the Docker stack to a standalone
-#              bare-metal or VM node on the local network (192.168.1.6).
+#              bare-metal or VM node on the local network (192.168.1.5).
 # ==============================================================================
 http:
   # --- Ingress: Domain Mapping ---
@@ -32,14 +32,14 @@ http:
     mscm-panel-svc:
       loadBalancer:
         servers:
-          - url: "http://192.168.1.6:23333"
+          - url: "http://192.168.1.5:23333"
 
     mscm-daemon-svc:
       loadBalancer:
         servers:
-          - url: "http://192.168.1.6:24444"
+          - url: "http://192.168.1.5:24444"
 
     bluemap-svc:
       loadBalancer:
         servers:
-          - url: "http://192.168.1.6:8080"
+          - url: "http://192.168.1.5:8080"
