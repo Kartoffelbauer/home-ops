@@ -79,12 +79,13 @@ services:
     container_name: ocis-init
 
     # Execution: Set correct ownership for oCIS directories
-    command: sh -c "chown -R ${OCIS_PUID:-1004}:${OCIS_PGID:-1004} /ocis-config /ocis-data /ocis-apps"
+    command: sh -c "chown -R ${OCIS_PUID:-1004}:${OCIS_PGID:-1004} /ocis-config /ocis-data /ocis-apps /ocis-onlyoffice"
 
     # State: Mount configuration and data directories
     volumes:
       - ./data/config/:/ocis-config
       - ./data/data/:/ocis-data
+      - ./data/onlyoffice/:/ocis-onlyoffice
       - ocis-apps:/ocis-apps
 
   # --- Web Extensions ---
@@ -324,6 +325,49 @@ services:
     healthcheck:
       test: "wget -qO /dev/null http://127.0.0.1:9304/healthz || exit 1"
 
+  # --- Document Server: Onlyoffice Internal Database ---
+  onlyoffice-database:
+    extends:
+      file: ../../shared/templates.yml
+      service: base-secure
+    image: mariadb:${MARIADB_DOCKER_TAG:-11.4}
+    container_name: onlyoffice-database
+
+    # Security: Run as non-root user, lock filesystem
+    user: "${OCIS_PUID:-1004}:${OCIS_PGID:-1004}"
+    read_only: true
+
+    # Lifecycle: Wait for permissions to be fixed
+    depends_on:
+      ocis-init:
+        condition: service_completed_successfully
+
+    # Connectivity: Expose internal network for other containers
+    networks:
+      - onlyoffice-internal
+
+    # Configuration: Natively auto-creates the databases and users on first startup (Alphabetized)
+    environment:
+      # Core Database Settings
+      MARIADB_AUTO_UPGRADE: "true"
+      MARIADB_ROOT_PASSWORD: "${MARIADB_ROOT_PASSWORD:?}"
+
+      # OnlyOffice App Database & User Settings
+      MARIADB_DATABASE: "onlyoffice"
+      MARIADB_PASSWORD: "${OCIS_ONLYOFFICE_DB_PASSWORD:?}"
+      MARIADB_USER: "onlyoffice"
+
+    # State: Mount the database directory and in-memory temp areas
+    volumes:
+      - ./data/onlyoffice:/var/lib/mysql
+    tmpfs:
+      - /tmp
+      - /run/mysqld
+
+    # Monitoring: Built-in check to ensure the InnoDB engine is fully initialized
+    healthcheck:
+      test: "healthcheck.sh --connect --innodb_initialized"
+
   # --- Document Server: OnlyOffice ---
   ocis-onlyoffice:
     extends:
@@ -347,19 +391,19 @@ services:
 
     # Lifecycle: Wait for database to be ready
     depends_on:
-      mariadb:
+      onlyoffice-database:
         condition: service_healthy
 
     # Connectivity: Internal communication and public proxy exposure
     networks:
       - ocis-internal
-      - mariadb-internal
+      - onlyoffice-internal
       - traefik-public
 
     # Configuration: Document server core settings (Alphabetized)
     environment:
       AMQP_URI: "amqp://guest:guest@localhost"
-      DB_HOST: "mariadb"
+      DB_HOST: "onlyoffice-database"
       DB_NAME: "onlyoffice"
       DB_PORT: "3306"
       DB_PWD: "${OCIS_ONLYOFFICE_DB_PASSWORD:?}"
@@ -403,9 +447,11 @@ services:
 networks:
   traefik-public:
   outbound-public:
-  mariadb-internal:
   ocis-internal:
     name: ocis-internal
+    internal: true
+  onlyoffice-internal:
+    name: onlyoffice-internal
     internal: true
 
 # --- Global Volumes ---

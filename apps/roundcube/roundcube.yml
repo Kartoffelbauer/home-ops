@@ -1,15 +1,15 @@
 services:
-  # --- Init Service: Prepares permissions for internal database ---
-  roundcube-database-init:
+  # --- Init Service: Prepares permissions for roundcube ---
+  roundcube-init:
     extends:
       file: ../../shared/templates.yml
       service: base-init
-    container_name: roundcube-database-init
+    container_name: roundcube-init
 
-    # Execution: Fix permissions on the database directory
+    # Execution: Fix permissions on the data directory
     command: sh -c "chown -R ${ROUNDCUBE_PUID:-1005}:${ROUNDCUBE_PGID:-1005} /data"
 
-    # State: Mount database directory
+    # State: Mount data directory
     volumes:
       - ./data:/data
 
@@ -27,7 +27,7 @@ services:
 
     # Lifecycle: Wait for permissions to be fixed
     depends_on:
-      roundcube-database-init:
+      roundcube-init:
         condition: service_completed_successfully
 
     # Connectivity: Expose internal network for other containers
@@ -55,7 +55,6 @@ services:
     # Monitoring: Built-in check to ensure the InnoDB engine is fully initialized
     healthcheck:
       test: "healthcheck.sh --connect --innodb_initialized"
-
 
   # --- Main Web Service: Roundcube Webmail ---
   roundcube:
@@ -116,3 +115,5 @@ services:
 networks:
   traefik-public:
   roundcube-internal:
+    name: roundcube-internal
+    internal: true
