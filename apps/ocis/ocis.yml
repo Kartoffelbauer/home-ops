@@ -326,12 +326,12 @@ services:
       test: "wget -qO /dev/null http://127.0.0.1:9304/healthz || exit 1"
 
   # --- Document Server: Onlyoffice Internal Database ---
-  onlyoffice-database:
+  ocis-onlyoffice-db:
     extends:
       file: ../../shared/templates.yml
       service: base-secure
     image: mariadb:${MARIADB_DOCKER_TAG:-11.4}
-    container_name: onlyoffice-database
+    container_name: ocis-onlyoffice-db
 
     # Security: Run as non-root user, lock filesystem
     user: "${OCIS_PUID:-1004}:${OCIS_PGID:-1004}"
@@ -391,7 +391,7 @@ services:
 
     # Lifecycle: Wait for database to be ready
     depends_on:
-      onlyoffice-database:
+      ocis-onlyoffice-db:
         condition: service_healthy
 
     # Connectivity: Internal communication and public proxy exposure
@@ -403,7 +403,7 @@ services:
     # Configuration: Document server core settings (Alphabetized)
     environment:
       AMQP_URI: "amqp://guest:guest@localhost"
-      DB_HOST: "onlyoffice-database"
+      DB_HOST: "ocis-onlyoffice-db"
       DB_NAME: "onlyoffice"
       DB_PORT: "3306"
       DB_PWD: "${OCIS_ONLYOFFICE_DB_PASSWORD:?}"
