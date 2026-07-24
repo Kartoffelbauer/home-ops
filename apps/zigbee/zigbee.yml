@@ -1,0 +1,121 @@
+services:
+  # --- Init Service: Prepares permissions Zigbee2MQTT & Mosquitto password file ---
+  zigbee-init:
+    extends:
+      file: ../../shared/templates.yml
+      service: base-init
+    image: alpine:${ALPINE_DOCKER_TAG:-3.23}
+    container_name: zigbee-init
+
+    # Environment variables pulled from root .env or Compose defaults
+    environment:
+      ZIGBEE_PASSWORD_Z2M: "${ZIGBEE_PASSWORD_Z2M:?}"
+      ZIGBEE_PASSWORD_HA: "${ZIGBEE_PASSWORD_HA:?}"
+      ZIGBEE_PUID: "${ZIGBEE_PUID:-1006}"
+      ZIGBEE_PGID: "${ZIGBEE_PGID:-1006}"
+
+    # Execution: Install mosquitto tools, build password file, and fix permissions
+    command: >
+      sh -c "
+        apk add --no-cache mosquitto-clients > /dev/null &&
+        mosquitto_passwd -c -b /mosquitto-data/mosquitto_passwd zigbee2mqtt \"$${ZIGBEE_PASSWORD_Z2M}\" &&
+        mosquitto_passwd -b /mosquitto-data/mosquitto_passwd homeassistant \"$${ZIGBEE_PASSWORD_HA}\" &&
+        chown -R ${ZIGBEE_PUID:-1006}:${ZIGBEE_PGID:-1006} /mosquitto-data /z2m-data &&
+        chmod 600 /mosquitto-data/mosquitto_passwd
+      "
+
+    # State: Mount data directories and in-memory temp areas
+    volumes:
+      - ./data/mosquitto:/mosquitto-data
+      - ./data/z2m:/z2m-data
+    tmpfs:
+      - /tmp:rw,exec,nosuid,nodev
+      - /var/cache/apk:rw,exec,nosuid,nodev
+
+  # --- MQTT Broker: Eclipse Mosquitto ---
+  zigbee-mosquitto:
+    extends:
+      file: ../../shared/templates.yml
+      service: base-secure
+    image: eclipse-mosquitto:${ZIGBEE_MOSQUITTO_DOCKER_TAG:-2.0}
+    container_name: zigbee-mosquitto
+
+    # Security: Run as non-root user with readonly container filesystem
+    user: "${ZIGBEE_PUID:-1006}:${ZIGBEE_PGID:-1006}"
+    read_only: true
+
+    # Lifecycle: Wait for permissions to be fixed
+    depends_on:
+      zigbee-init:
+        condition: service_completed_successfully
+
+    # Connectivity: Expose internal network and MQTT port
+    networks:
+      - zigbee-internal
+    ports:
+      - "127.0.0.1:1883:1883"
+
+    # State: Persistent data, read-only config, and in-memory temp areas
+    volumes:
+      - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./data/mosquitto:/mosquitto-data
+    tmpfs:
+      - /tmp:rw,exec,nosuid,nodev
+      - /run:rw,exec,nosuid,nodev
+
+  # --- Zigbee Service: Zigbee2MQTT ---
+  zigbee-z2m:
+    extends:
+      file: ../../shared/templates.yml
+      service: base-secure
+    image: koenkk/zigbee2mqtt:${ZIGBEE_Z2M_DOCKER_TAG:-2}
+    container_name: zigbee-z2m
+
+    # Security: Run as non-root user with readonly container filesystem
+    user: "${ZIGBEE_PUID:-1006}:${ZIGBEE_PGID:-1006}"
+    read_only: true
+
+    # Lifecycle: Wait for permissions and broker to be ready
+    depends_on:
+      zigbee-init:
+        condition: service_completed_successfully
+      zigbee-mosquitto:
+        condition: service_started
+
+    # Connectivity: Internal communication and public proxy exposure
+    networks:
+      - traefik-public
+      - zigbee-internal
+
+    # Configuration: Base environment variables (Alphabetized)
+    environment:
+      TZ: "${TZ:-Etc/UTC}"
+      ZIGBEE2MQTT_CONFIG_FRONTEND_ENABLED: "true"
+      ZIGBEE2MQTT_CONFIG_FRONTEND_PORT: "8080"
+      ZIGBEE2MQTT_CONFIG_HOMEASSISTANT: "true"
+      ZIGBEE2MQTT_CONFIG_MQTT_PASSWORD: "${ZIGBEE_PASSWORD_Z2M:?}"
+      ZIGBEE2MQTT_CONFIG_MQTT_SERVER: "mqtt://zigbee-mosquitto:1883"
+      ZIGBEE2MQTT_CONFIG_MQTT_USER: "zigbee2mqtt"
+      ZIGBEE2MQTT_CONFIG_SERIAL_ADAPTER: "${ZIGBEE_Z2M_SERIAL_ADAPTER:-ember}"
+      ZIGBEE2MQTT_CONFIG_SERIAL_PORT: "${ZIGBEE_Z2M_SERIAL_PORT:-tcp://127.0.0.1:6638}"
+
+    # Routing: Traefik reverse proxy configuration (Alphabetized)
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.z2m.entrypoints=websecure"
+      - "traefik.http.routers.z2m.rule=Host(`${ZIGBEE_SUBDOMAIN:-z2m}.${DOMAIN_PRIMARY:-localhost}`)"
+      - "traefik.http.services.z2m.loadbalancer.server.port=8080"
+
+    # State: Mount app data directory and in-memory temp areas
+    volumes:
+      - ./data/z2m:/app/data
+    tmpfs:
+      - /tmp:rw,exec,nosuid,nodev
+      - /run:rw,exec,nosuid,nodev
+
+# --- Global Network Definitions ---
+networks:
+  traefik-public:
+  zigbee-internal:
+    name: zigbee-internal
+    internal: true

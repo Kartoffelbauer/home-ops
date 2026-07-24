@@ -47,16 +47,20 @@ services:
       file: ../../shared/templates.yml
       service: base-init
     container_name: home-assistant-init
+
+    # Execution: Install mosquitto tools, build password file, and fix permissions
     command: >
       sh -c "
-        mkdir -p /data/config && mkdir -p /data/media &&
-        cp /config/configuration.yaml /data/config/ &&
-        touch /data/config/automations.yaml /data/config/scripts.yaml /data/config/scenes.yaml /data/config/secrets.yaml &&
-        chown -R 0:0 /data
+        cp /config/configuration.yaml /data-config &&
+        touch /data-config/automations.yaml /data-config/scripts.yaml /data-config/scenes.yaml /data-config/secrets.yaml &&
+        chown -R 0:0 /data-config /data-media
       "
+
+    # State: Mount configuration and data directories
     volumes:
-      - ./data:/data
       - ./config:/config
+      - ./data/config:/data-config
+      - ./data/media:/data-media
 
   # --- Ext Init Service: Downloads Home Assistant custom components ---
   home-assistant-ext-init:
@@ -108,7 +112,7 @@ services:
     environment:
       HOMEASSISTANT_LOG_LEVEL: "${HOMEASSISTANT_LOG_LEVEL:-info}"
 
-    # State: Mount config and media directories, plus read-only access to D-Bus
+    # State: Mount config and media directories and in-memory temp areas
     volumes:
       - ./data/config:/config
       - ./config/streamline-templates.yaml:/config/www/community/streamline-card/streamline_templates.yaml:ro
