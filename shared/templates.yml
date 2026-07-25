@@ -50,8 +50,7 @@ services:
 
   # --- Extended Init Service: Template for more complex initialization needs ---
   base-init-extended:
-    <<: *init-common
-    <<: *outbound-dependencies
+    <<: [ *init-common, *outbound-dependencies ]
     image: alpine:${ALPINE_DOCKER_TAG:-3.23}
 
     # Platform: Specify the platform for compatibility
