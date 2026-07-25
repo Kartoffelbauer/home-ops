@@ -1,6 +1,9 @@
 # --- DRY Templates ---
 # Template for oCIS Web Extensions
 x-ocis-extension: &ocis-extension
+  # Platform: Specify the platform for compatibility reasons
+  platform: linux/amd64
+
   # Connectivity: No external network access required for extension initialization
   network_mode: none
 
