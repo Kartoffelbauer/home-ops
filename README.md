@@ -40,9 +40,9 @@ cp .env.example .env
 nano .env
 ```
 
-### 2. Generate Traefik and Zigbee2MQTT Credentials
+### 2. Generate Traefik, Pi-hole and Zigbee2MQTT Credentials
 
-Generate a password hash for the Traefik and Zigbee2MQTT dashboard. Replace `admin` with your preferred username.
+Generate a seperate password hash for the Traefik, Pi-hole and Zigbee2MQTT dashboard. Replace `admin` with your preferred username.
 
 ```bash
 htpasswd -nB admin
