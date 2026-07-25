@@ -103,7 +103,9 @@ services:
     # Routing: Traefik dynamic configuration (Alphabetized)
     labels:
       - "traefik.enable=true"
+      - "traefik.http.middlewares.pihole-ipwhite.ipallowlist.sourcerange=127.0.0.1/32,${HOST_LOCAL_IPV4_SUBNET:-192.168.178.0/24},${HOST_LOCAL_IPV6_SUBNET:-fd00::/64}"
       - "traefik.http.routers.pihole.entrypoints=websecure"
+      - "traefik.http.routers.pihole.middlewares=pihole-ipwhite@docker"
       - "traefik.http.routers.pihole.rule=Host(`${PIHOLE_SUBDOMAIN:-pihole}.${DOMAIN_PRIMARY:-localhost}`)"
       - "traefik.http.services.pihole.loadbalancer.server.port=80"
 

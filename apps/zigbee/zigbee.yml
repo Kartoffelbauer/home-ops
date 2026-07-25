@@ -17,8 +17,8 @@ services:
     command: >
       sh -c "
         apk add --no-cache mosquitto > /dev/null &&
-        mosquitto_passwd -c -b /mosquitto-data/mosquitto_passwd zigbee2mqtt \"$${ZIGBEE_MOSQUITTO_PASSWORD_Z2M}\" &&
-        mosquitto_passwd -b /mosquitto-data/mosquitto_passwd homeassistant \"$${ZIGBEE_MOSQUITTO_PASSWORD_HA}\" &&
+        mosquitto_passwd -c -b /mosquitto-data/mosquitto_passwd zigbee2mqtt \"$${ZIGBEE_MOSQUITTO_PASSWORD_Z2M}\" 2>/dev/null &&
+        mosquitto_passwd -b /mosquitto-data/mosquitto_passwd homeassistant \"$${ZIGBEE_MOSQUITTO_PASSWORD_HA}\" 2>/dev/null &&
         chown -R ${ZIGBEE_PUID:-1006}:${ZIGBEE_PGID:-1006} /mosquitto-data /z2m-data &&
         chmod 600 /mosquitto-data/mosquitto_passwd
       "
