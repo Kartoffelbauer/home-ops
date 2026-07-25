@@ -19,6 +19,7 @@ include:
   - apps/roundcube/roundcube.yml
   - apps/websites/web-aaronsoft/web-aaronsoft.yml
   - apps/websites/web-get-orga-niced/web-get-orga-niced.yml
+  - apps/zigbee/zigbee.yml
 
 # --- Global Network Definitions ---
 networks:
