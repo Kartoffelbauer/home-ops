@@ -21,14 +21,16 @@ http:
         stsPreload: true
         forceSTSHeader: true
 
-    # --- 3. Error Handling ---
-    # Integrates the standalone Nginx fallback container for 502/504 errors
+    # --- 3. Dynamic Error Handling ---
+    # Catches 403 (Forbidden) and 502-504 (Gateway / App Offline) errors
     error-pages-fallback:
       errors:
         status:
+          - "403"
           - "502-504"
         service: "fallback-svc@docker"
-        query: "/"
+        # Dynamic query: Traefik automatically requests /403.html, /502.html, etc.
+        query: "/{status}.html"
 
     # --- 4. Global Chains ---
     # Master middleware pipeline attached to the main websecure entrypoint

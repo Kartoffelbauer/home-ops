@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>403 | Access Denied</title>
+
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cstyle%3Epath,rect%7Bstroke:%233b82f6;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;%7D@media(prefers-color-scheme:dark)%7Bpath,rect%7Bstroke:%2360a5fa;%7D%7D%3C/style%3E%3Crect x='3' y='11' width='18' height='11' rx='2' ry='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E">
+
+    <style>
+        /* --- 1. Theme Variables (DRY) --- */
+        :root {
+            /* Light Mode (Default) */
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-primary: #334155;
+            --text-secondary: #64748b;
+            --accent-color: #3b82f6;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        /* Auto-Switching Dark Mode */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #0f172a;
+                --card-bg: #1e293b;
+                --text-primary: #f1f5f9;
+                --text-secondary: #94a3b8;
+                --accent-color: #60a5fa;
+                --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+            }
+        }
+
+        /* --- 2. CSS Reset & Utility Classes --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        .hidden { display: none !important; }
+
+        /* --- 3. Layout & Typography --- */
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .fallback-container {
+            max-width: 600px;
+            width: 100%;
+            background: var(--card-bg);
+            padding: 3rem 2rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        h1 { font-size: 2.2rem; margin-bottom: 1rem; }
+        p { font-size: 1.1rem; line-height: 1.6; color: var(--text-secondary); margin-bottom: 1.5rem; }
+
+        /* --- 4. Dynamic Status Section --- */
+        .status-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 24px; /* Prevents layout shift when swapping states */
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--accent-color);
+        }
+
+        .loading-state {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* --- 5. Icons & Animations --- */
+        .error-icon {
+            width: 72px;
+            height: 72px;
+            margin-bottom: 1.5rem;
+            stroke: var(--accent-color);
+            animation: pulse 2.5s infinite ease-in-out;
+        }
+
+        .spinner {
+            width: 1.25rem;
+            height: 1.25rem;
+            animation: spin 1s linear infinite;
+        }
+
+        .spinner circle { opacity: 0.25; }
+        .spinner path { opacity: 0.75; }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.08); opacity: 0.8; }
+        }
+
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+
+    <script>
+        // --- Clean Code JavaScript ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Configuration Object prevents "Magic Numbers"
+            const CONFIG = {
+                ids: {
+                    countdownVal: 'countdown-value',
+                    countdownState: 'state-countdown',
+                    loadingState: 'state-loading'
+                },
+                durationSeconds: 30,
+                intervalMs: 1000
+            };
+
+            // DOM Node caching
+            const nodes = {
+                value: document.getElementById(CONFIG.ids.countdownVal),
+                countdown: document.getElementById(CONFIG.ids.countdownState),
+                loading: document.getElementById(CONFIG.ids.loadingState)
+            };
+
+            let timeLeft = CONFIG.durationSeconds;
+
+            // Defensive programming: abort if required DOM elements are missing
+            if (!nodes.value || !nodes.countdown || !nodes.loading) return;
+
+            const timerInterval = setInterval(() => {
+                timeLeft -= 1;
+                nodes.value.textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    // 1. Clear interval to prevent memory leaks
+                    clearInterval(timerInterval);
+
+                    // 2. State transition via utility classes (Clean UI swapping)
+                    nodes.countdown.classList.add('hidden');
+                    nodes.loading.classList.remove('hidden');
+
+                    // 3. Yield to the browser's render pipeline before synchronous reload.
+                    // This ensures the spinner is actually drawn on screen before the thread locks.
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            window.location.reload(true);
+                        });
+                    });
+                }
+            }, CONFIG.intervalMs);
+        });
+    </script>
+</head>
+<body>
+    <main class="fallback-container">
+        <!-- 403 Forbidden Lock Icon -->
+        <svg class="error-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+
+        <h1>Access Denied</h1>
+        <p>Access denied. If this is a local service, please connect to your home Wi-Fi or VPN.</p>
+
+        <div class="status-wrapper">
+            <div id="state-countdown">
+                Retrying request in <span id="countdown-value">30</span> seconds...
+            </div>
+
+            <div id="state-loading" class="loading-state hidden">
+                <svg class="spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Verifying credentials...</span>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
