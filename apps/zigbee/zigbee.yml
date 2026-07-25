@@ -3,8 +3,7 @@ services:
   zigbee-init:
     extends:
       file: ../../shared/templates.yml
-      service: base-init
-    image: alpine:${ALPINE_DOCKER_TAG:-3.23}
+      service: base-init-extended
     container_name: zigbee-init
 
     # Environment variables pulled from root .env or Compose defaults
@@ -24,13 +23,10 @@ services:
         chmod 600 /mosquitto-data/mosquitto_passwd
       "
 
-    # State: Mount data directories and in-memory temp areas
+    # State: Mount data directories
     volumes:
       - ./data/mosquitto:/mosquitto-data
       - ./data/z2m:/z2m-data
-    tmpfs:
-      - /tmp:rw,exec,nosuid,nodev
-      - /var/cache/apk:rw,exec,nosuid,nodev
 
   # --- MQTT Broker: Eclipse Mosquitto ---
   zigbee-mosquitto:

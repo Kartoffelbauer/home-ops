@@ -1,3 +1,23 @@
+x-init-common: &init-common
+  # Lifecycle: Tell Watchtower to ignore all containers using this template
+  labels:
+    - "com.centurylinklabs.watchtower.enable=false"
+
+  # Security: Drop all privileges and add only required ones back
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  cap_add:
+    - CHOWN
+    - FOWNER
+    - FSETID
+    - DAC_OVERRIDE
+
+  # Environment: Set the timezone for all containers using this template
+  environment:
+      TZ: "${TZ:-Etc/UTC}"
+
 # --- Lifecycle: Default values ---
 x-lifecycle-defaults: &lifecycle-defaults
   healthcheck:
@@ -7,37 +27,31 @@ x-lifecycle-defaults: &lifecycle-defaults
     retries: 3
   stop_grace_period: 30s
 
+# --- Outbound Dependencies: Default values ---
 x-outbound-dependencies: &outbound-dependencies
   depends_on:
     pihole:
       condition: service_healthy
 
-# --- Init Service: Templates for preparing permissions ---
 services:
+  # --- Basic Init Service: Templates for preparing permissions ---
   base-init:
+    <<: *init-common
     image: busybox:${BUSYBOX_DOCKER_TAG:-1.37}
-
-    # Lifecycle: Tell Watchtower to ignore all containers using this template
-    labels:
-      - "com.centurylinklabs.watchtower.enable=false"
 
     # Connectivity: Attach to no network
     network_mode: none
 
-    # Security: Lock the filesystem, drop all privileges, and add only required ones back
+    # Security: Lock the filesystem
     read_only: true
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - CHOWN
-      - FOWNER
-      - DAC_OVERRIDE
 
-    # Environment: Set the timezone for all containers using this template
-    environment:
-      TZ: "${TZ:-Etc/UTC}"
+  # --- Extended Init Service: Template for more complex initialization needs ---
+  base-init-extended:
+    <<: *init-common
+    image: alpine:${ALPINE_DOCKER_TAG:-3.23}
+
+    # Platform: Specify the platform for compatibility
+    platform: linux/amd64
 
   # --- Basic Service Base: Template for basic containers ---
   base-default:

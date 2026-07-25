@@ -1,9 +1,8 @@
 # --- DRY Templates ---
 # Template for oCIS Web Extensions
-x-ocis-ext-base: &ocis-ext-base
-  # Execution: Run as root and define platform for compatibility
-  user: root
-  platform: linux/amd64
+x-ocis-extension: &ocis-extension
+  # Connectivity: No external network access required for extension initialization
+  network_mode: none
 
   # Security: Set base privileges and capabilities
   security_opt:
@@ -21,53 +20,14 @@ x-ocis-ext-base: &ocis-ext-base
     ocis-init:
       condition: service_completed_successfully
 
-  # State: Bind extension apps folder
-  volumes:
-    - ocis-apps:/apps
-
-# Template for oCIS Web Extensions
-x-ocis-ext-default: &ocis-ext-default
-  <<: *ocis-ext-base
-
   # Execution: Set base entrypoint
   entrypoint:
     - /bin/sh
     - -c
 
-  # Connectivity: No external network access required for extension initialization
-  network_mode: none
-
-# Template for oCIS Web Extensions with custom logic
-x-ocis-ext-custom: &ocis-ext-custom
-  <<: *ocis-ext-base
-  image: alpine:${ALPINE_DOCKER_TAG:-3.23}
-
-  # Configuration: Set user and group IDs for oCIS (Alpabetized)
-  environment:
-    GITHUB_TOKEN: "${GITHUB_PERSONAL_ACCESS_TOKEN:-}"
-    OCIS_PUID: "${OCIS_PUID:-1004}"
-    OCIS_PGID: "${OCIS_PGID:-1004}"
-
-  # Execution: Set base entrypoint
-  entrypoint:
-    - /bin/sh
-    - /init.sh
-
-  # Connectivity: Needs internet to hit GitHub API
-  networks:
-    - outbound-public
-
-  # Lifecycle: Wait for required services to be ready before running
-  depends_on:
-    ocis-init:
-      condition: service_completed_successfully
-    pihole:
-      condition: service_healthy
-
-  # State: Mount the config volume and script
+  # State: Bind extension apps folder
   volumes:
     - ocis-apps:/apps
-    - ./init/init-extensions.sh:/init.sh:ro
 
 
 services:
@@ -90,7 +50,7 @@ services:
 
   # --- Web Extensions ---
   ocis-ext-3dviewer-init:
-    <<: *ocis-ext-default
+    <<: *ocis-extension
     image: sawjan/3dviewer:${OCIS_EXT_3D_VIEWER_DOCKER_TAG:-0.1.0}
     container_name: ocis-ext-3dviewer-init
 
@@ -100,7 +60,7 @@ services:
       - "cp -R /app/* /apps"
 
   ocis-ext-advanced-search-init:
-    <<: *ocis-ext-default
+    <<: *ocis-extension
     image: owncloud/web-extensions:advanced-search-${OCIS_EXT_ADV_SEARCH_DOCKER_TAG:-latest}
     container_name: ocis-ext-advanced-search-init
 
@@ -110,7 +70,7 @@ services:
       - "cp -R /var/lib/nginx/html/advanced-search/ /apps"
 
   ocis-ext-drawio-init:
-    <<: *ocis-ext-default
+    <<: *ocis-extension
     image: owncloud/web-extensions:draw-io-${OCIS_EXT_DRAWIO_DOCKER_TAG:-latest}
     container_name: ocis-ext-drawio-init
 
@@ -120,7 +80,7 @@ services:
       - "cp -R /var/lib/nginx/html/draw-io/ /apps"
 
   ocis-ext-jsonviewer-init:
-    <<: *ocis-ext-default
+    <<: *ocis-extension
     image: owncloud/web-extensions:json-viewer-${OCIS_EXT_JSON_VIEWER_DOCKER_TAG:-latest}
     container_name: ocis-ext-jsonviewer-init
 
@@ -130,7 +90,7 @@ services:
       - "cp -R /var/lib/nginx/html/json-viewer/ /apps"
 
   ocis-ext-photo-addon-init:
-    <<: *ocis-ext-default
+    <<: *ocis-extension
     image: owncloud/web-extensions:photo-addon-${OCIS_EXT_PHOTO_ADDON_DOCKER_TAG:-latest}
     container_name: ocis-ext-photo-addon-init
 
@@ -140,7 +100,7 @@ services:
       - "cp -R /var/lib/nginx/html/photo-addon/ /apps"
 
   ocis-ext-unzip-init:
-    <<: *ocis-ext-default
+    <<: *ocis-extension
     image: owncloud/web-extensions:unzip-${OCIS_EXT_UNZIP_DOCKER_TAG:-latest}
     container_name: ocis-ext-unzip-init
 
@@ -150,13 +110,42 @@ services:
       - "cp -R /var/lib/nginx/html/unzip/ /apps"
 
   ocis-ext-custom-init:
-    <<: *ocis-ext-custom
+    extends:
+      file: ../../shared/templates.yml
+      service: base-init-extended
     container_name: ocis-ext-custom-init
+
+    # Configuration: Set user and group IDs for oCIS (Alpabetized)
+    environment:
+      GITHUB_TOKEN: "${GITHUB_PERSONAL_ACCESS_TOKEN:-}"
+      OCIS_PUID: "${OCIS_PUID:-1004}"
+      OCIS_PGID: "${OCIS_PGID:-1004}"
+
+    # Execution: Set base entrypoint
+    entrypoint:
+      - /bin/sh
+      - /init.sh
+
+    # Connectivity: Needs internet to hit GitHub API
+    networks:
+      - outbound-public
+
+    # Lifecycle: Wait for required services to be ready before running
+    depends_on:
+      ocis-init:
+        condition: service_completed_successfully
+      pihole:
+        condition: service_healthy
 
     # Execution: Download and install custom extensions via script
     command:
       - "LukasHirt/web-app-excalidraw:${OCIS_EXT_EXCALIDRAW_DOCKER_TAG:-latest}"
       - "mschlachter/ocis-app-tokens:${OCIS_EXT_APP_TOKENS_DOCKER_TAG:-latest}"
+
+    # State: Mount the config volume and script
+    volumes:
+      - ocis-apps:/apps
+      - ./init/init-extensions.sh:/init.sh:ro
 
   # --- Full Text Search Extractor ---
   ocis-tika:

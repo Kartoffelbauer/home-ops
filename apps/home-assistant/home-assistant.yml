@@ -1,45 +1,3 @@
-# --- DRY Templates ---
-# Template for Home Assistant Extension Initialization
-x-ha-ext-base: &ha-ext-base
-  image: alpine:${ALPINE_DOCKER_TAG:-3.23}
-
-  # Execution: Run as root and define platform for compatibility
-  user: root
-  platform: linux/amd64
-
-  # Security: Set base privileges and capabilities
-  security_opt:
-    - no-new-privileges:true
-  cap_drop:
-    - ALL
-  cap_add:
-    - CHOWN
-    - FOWNER
-    - FSETID
-    - DAC_OVERRIDE
-
-  # Lifecycle: Wait for required services to be ready before running
-  depends_on:
-    home-assistant-init:
-      condition: service_completed_successfully
-    pihole:
-      condition: service_healthy
-
-  # Execution: Set base entrypoint
-  entrypoint:
-    - /bin/sh
-    - /init.sh
-
-  # Connectivity: Needs internet to hit GitHub API
-  networks:
-    - outbound-public
-
-  # State: Mount the config volume and script
-  volumes:
-    - ./data/config:/config
-    - ./init/init-extensions.sh:/init.sh:ro
-
-
 services:
   # --- Init Service: Prepares config permissions before Home Assistant starts ---
   home-assistant-init:
@@ -64,8 +22,26 @@ services:
 
   # --- Ext Init Service: Downloads Home Assistant custom components ---
   home-assistant-ext-init:
-    <<: *ha-ext-base
+    extends:
+      file: ../../shared/templates.yml
+      service: base-init-extended
     container_name: home-assistant-ext-init
+
+    # Lifecycle: Wait for required services to be ready before running
+    depends_on:
+      home-assistant-init:
+        condition: service_completed_successfully
+      pihole:
+        condition: service_healthy
+
+    # Execution: Set base entrypoint
+    entrypoint:
+      - /bin/sh
+      - /init.sh
+
+    # Connectivity: Needs internet to hit GitHub API
+    networks:
+      - outbound-public
 
     # Configuration: Environment variables
     environment:
@@ -84,6 +60,11 @@ services:
       - "frontend=custom-cards/button-card:${HOMEASSISTANT_EXT_BUTTON_CARD_DOCKER_TAG:-latest}"
       - "frontend=francois-le-ko4la/lovelace-entity-progress-card:${HOMEASSISTANT_EXT_LOVELACE_ENTITY_PROGRESS_CARD_DOCKER_TAG:-latest}"
       - "frontend=piitaya/lovelace-mushroom:${HOMEASSISTANT_EXT_LOVELACE_MUSHROOM_DOCKER_TAG:-latest}"
+
+    # State: Mount the config volume and script
+    volumes:
+      - ./data/config:/config
+      - ./init/init-extensions.sh:/init.sh:ro
 
   # --- Main Smart Home Service: Home Assistant ---
   home-assistant:
