@@ -233,7 +233,7 @@ done
 # 6. Permissions & Post-Installation
 # ==============================================================================
 
-# Default to 1005 if variables are unset to match oCIS standard
+# Default to 1004 if variables are unset to match oCIS standard
 PUID="${OCIS_PUID:-1004}"
 PGID="${OCIS_PGID:-1004}"
 

@@ -9,17 +9,17 @@ services:
 
     # Environment variables pulled from root .env or Compose defaults
     environment:
-      ZIGBEE_PASSWORD_Z2M: "${ZIGBEE_PASSWORD_Z2M:?}"
-      ZIGBEE_PASSWORD_HA: "${ZIGBEE_PASSWORD_HA:?}"
+      ZIGBEE_MOSQUITTO_PASSWORD_Z2M: "${ZIGBEE_MOSQUITTO_PASSWORD_Z2M:?}"
+      ZIGBEE_MOSQUITTO_PASSWORD_HA: "${ZIGBEE_MOSQUITTO_PASSWORD_HA:?}"
       ZIGBEE_PUID: "${ZIGBEE_PUID:-1006}"
       ZIGBEE_PGID: "${ZIGBEE_PGID:-1006}"
 
     # Execution: Install mosquitto tools, build password file, and fix permissions
     command: >
       sh -c "
-        apk add --no-cache mosquitto-clients > /dev/null &&
-        mosquitto_passwd -c -b /mosquitto-data/mosquitto_passwd zigbee2mqtt \"$${ZIGBEE_PASSWORD_Z2M}\" &&
-        mosquitto_passwd -b /mosquitto-data/mosquitto_passwd homeassistant \"$${ZIGBEE_PASSWORD_HA}\" &&
+        apk add --no-cache mosquitto > /dev/null &&
+        mosquitto_passwd -c -b /mosquitto-data/mosquitto_passwd zigbee2mqtt \"$${ZIGBEE_MOSQUITTO_PASSWORD_Z2M}\" &&
+        mosquitto_passwd -b /mosquitto-data/mosquitto_passwd homeassistant \"$${ZIGBEE_MOSQUITTO_PASSWORD_HA}\" &&
         chown -R ${ZIGBEE_PUID:-1006}:${ZIGBEE_PGID:-1006} /mosquitto-data /z2m-data &&
         chmod 600 /mosquitto-data/mosquitto_passwd
       "
@@ -58,10 +58,14 @@ services:
     # State: Persistent data, read-only config, and in-memory temp areas
     volumes:
       - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      - ./data/mosquitto:/mosquitto-data
+      - ./data/mosquitto:/mosquitto/data
     tmpfs:
       - /tmp:rw,exec,nosuid,nodev
       - /run:rw,exec,nosuid,nodev
+
+    # Healthcheck: Ping Mosquitto on port 1883
+    healthcheck:
+      test: "nc -z 127.0.0.1 1883 || exit 1"
 
   # --- Zigbee Service: Zigbee2MQTT ---
   zigbee-z2m:
@@ -80,7 +84,7 @@ services:
       zigbee-init:
         condition: service_completed_successfully
       zigbee-mosquitto:
-        condition: service_started
+        condition: service_healthy
 
     # Connectivity: Internal communication and public proxy exposure
     networks:
@@ -92,8 +96,9 @@ services:
       TZ: "${TZ:-Etc/UTC}"
       ZIGBEE2MQTT_CONFIG_FRONTEND_ENABLED: "true"
       ZIGBEE2MQTT_CONFIG_FRONTEND_PORT: "8080"
-      ZIGBEE2MQTT_CONFIG_HOMEASSISTANT: "true"
-      ZIGBEE2MQTT_CONFIG_MQTT_PASSWORD: "${ZIGBEE_PASSWORD_Z2M:?}"
+      ZIGBEE2MQTT_CONFIG_FRONTEND_AUTH_TOKEN: "${ZIGBEE_Z2M_FRONTEND_TOKEN:?}"
+      ZIGBEE2MQTT_CONFIG_HOMEASSISTANT_ENABLED: "true"
+      ZIGBEE2MQTT_CONFIG_MQTT_PASSWORD: "${ZIGBEE_MOSQUITTO_PASSWORD_Z2M:?}"
       ZIGBEE2MQTT_CONFIG_MQTT_SERVER: "mqtt://zigbee-mosquitto:1883"
       ZIGBEE2MQTT_CONFIG_MQTT_USER: "zigbee2mqtt"
       ZIGBEE2MQTT_CONFIG_SERIAL_ADAPTER: "${ZIGBEE_Z2M_SERIAL_ADAPTER:-ember}"
@@ -102,7 +107,9 @@ services:
     # Routing: Traefik reverse proxy configuration (Alphabetized)
     labels:
       - "traefik.enable=true"
+      - "traefik.http.middlewares.z2m-ipwhite.ipallowlist.sourcerange=127.0.0.1/32,${HOST_LOCAL_IPV4_SUBNET:-192.168.178.0/24},${HOST_LOCAL_IPV6_SUBNET:-fd00::/64}"
       - "traefik.http.routers.z2m.entrypoints=websecure"
+      - "traefik.http.routers.z2m.middlewares=z2m-ipwhite@docker"
       - "traefik.http.routers.z2m.rule=Host(`${ZIGBEE_SUBDOMAIN:-z2m}.${DOMAIN_PRIMARY:-localhost}`)"
       - "traefik.http.services.z2m.loadbalancer.server.port=8080"
 
@@ -112,6 +119,10 @@ services:
     tmpfs:
       - /tmp:rw,exec,nosuid,nodev
       - /run:rw,exec,nosuid,nodev
+
+    # Healthcheck: Poll the Z2M Web Frontend HTTP port (8080)
+    healthcheck:
+      test: "wget -qO /dev/null http://127.0.0.1:8080/ || exit 1"
 
 # --- Global Network Definitions ---
 networks:
