@@ -49,9 +49,9 @@ services:
 
     # State: Mount configuration and data directories
     volumes:
-      - ./data/config/:/ocis-config
-      - ./data/data/:/ocis-data
-      - ./data/onlyoffice/:/ocis-onlyoffice
+      - ./data/config:/ocis-config
+      - ./data/data:/ocis-data
+      - ./data/onlyoffice:/ocis-onlyoffice
       - ocis-apps:/ocis-apps
 
   # --- Web Extensions ---
@@ -251,8 +251,8 @@ services:
 
     # State: Persistent data, config overrides, and web apps
     volumes:
-      - ./data/config/:/etc/ocis
-      - ./data/data/:/var/lib/ocis
+      - ./data/config:/etc/ocis
+      - ./data/data:/var/lib/ocis
       - ./config/ocis/app-registry.yaml:/etc/ocis/app-registry.yaml:ro
       - ./config/ocis/apps.yaml:/etc/ocis/apps.yaml:ro
       - ./config/ocis/csp.yaml:/etc/ocis/csp.yaml:ro
@@ -310,7 +310,7 @@ services:
 
     # State: Shared oCIS configuration
     volumes:
-      - ./data/config/:/etc/ocis
+      - ./data/config:/etc/ocis
 
     # Monitoring: Internal check to ensure the app is healthy
     healthcheck:

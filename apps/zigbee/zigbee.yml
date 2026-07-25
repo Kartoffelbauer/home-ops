@@ -92,7 +92,6 @@ services:
       TZ: "${TZ:-Etc/UTC}"
       ZIGBEE2MQTT_CONFIG_FRONTEND_ENABLED: "true"
       ZIGBEE2MQTT_CONFIG_FRONTEND_PORT: "8080"
-      ZIGBEE2MQTT_CONFIG_FRONTEND_AUTH_TOKEN: "${ZIGBEE_Z2M_FRONTEND_TOKEN:?}"
       ZIGBEE2MQTT_CONFIG_HOMEASSISTANT_ENABLED: "true"
       ZIGBEE2MQTT_CONFIG_MQTT_PASSWORD: "${ZIGBEE_MOSQUITTO_PASSWORD_Z2M:?}"
       ZIGBEE2MQTT_CONFIG_MQTT_SERVER: "mqtt://zigbee-mosquitto:1883"
@@ -103,6 +102,7 @@ services:
     # Routing: Traefik reverse proxy configuration (Alphabetized)
     labels:
       - "traefik.enable=true"
+      - "traefik.http.middlewares.z2m-auth.basicauth.users=${ZIGBEE_DASHBOARD_CREDENTIALS:?}"
       - "traefik.http.middlewares.z2m-ipwhite.ipallowlist.sourcerange=127.0.0.1/32,${HOST_LOCAL_IPV4_SUBNET:-192.168.178.0/24},${HOST_LOCAL_IPV6_SUBNET:-fd00::/64}"
       - "traefik.http.routers.z2m.entrypoints=websecure"
       - "traefik.http.routers.z2m.middlewares=z2m-ipwhite@docker"
