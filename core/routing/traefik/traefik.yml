@@ -137,7 +137,8 @@ services:
 
       # --- 2. Middlewares Hosted by this Service ---
       # Secure the Traefik dashboard with Basic Authentication
-      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_CREDENTIALS:?}"
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_CREDENTIALS:?}"
+      - "traefik.http.middlewares.traefik-ipwhite.ipallowlist.sourcerange=127.0.0.1/32,${HOST_LOCAL_IPV4_SUBNET:-192.168.178.0/24},${HOST_LOCAL_IPV6_SUBNET:-fd00::/64}"
 
       # Dynamic Redirect Middleware: Forwards traffic to the preferred web subdomain
       - "traefik.http.middlewares.redirect-to-web.redirectregex.permanent=true"
@@ -147,7 +148,7 @@ services:
       # --- 3. Routers ---
       # Internal Dashboard Router
       - "traefik.http.routers.dashboard.entrypoints=websecure"
-      - "traefik.http.routers.dashboard.middlewares=dashboard-auth"
+      - "traefik.http.routers.dashboard.middlewares=traefik-ipwhite@docker,traefik-auth@docker"
       - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_SUBDOMAIN:-traefik}.${DOMAIN_PRIMARY:-localhost}`) || Host(`${TRAEFIK_SUBDOMAIN:-traefik}.${DOMAIN_SECONDARY:-localhost}`)"
       - "traefik.http.routers.dashboard.service=api@internal"
 
