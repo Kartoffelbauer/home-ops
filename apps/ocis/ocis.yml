@@ -4,6 +4,9 @@ x-ocis-extension: &ocis-extension
   # Platform: Specify the platform for compatibility reasons
   platform: linux/amd64
 
+  # User: Run as root user
+  user: root
+
   # Connectivity: No external network access required for extension initialization
   network_mode: none
 
@@ -128,10 +131,6 @@ services:
     entrypoint:
       - /bin/sh
       - /init.sh
-
-    # Connectivity: Needs internet to hit GitHub API
-    networks:
-      - outbound-public
 
     # Lifecycle: Wait for required services to be ready before running
     depends_on:

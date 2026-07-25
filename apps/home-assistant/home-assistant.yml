@@ -39,10 +39,6 @@ services:
       - /bin/sh
       - /init.sh
 
-    # Connectivity: Needs internet to hit GitHub API
-    networks:
-      - outbound-public
-
     # Configuration: Environment variables
     environment:
       GITHUB_TOKEN: ${GITHUB_PERSONAL_ACCESS_TOKEN:-}
