@@ -50,6 +50,7 @@ services:
       - zigbee-internal
     ports:
       - "127.0.0.1:1883:1883"
+      - "[::1]:1883:1883"
 
     # State: Persistent data, read-only config, and in-memory temp areas
     volumes:
