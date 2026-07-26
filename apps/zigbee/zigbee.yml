@@ -126,5 +126,3 @@ networks:
   traefik-public:
   outbound-public:
   zigbee-internal:
-    name: zigbee-internal
-    internal: true
