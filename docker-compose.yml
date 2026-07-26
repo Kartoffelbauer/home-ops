@@ -28,11 +28,20 @@ networks:
     name: outbound-public
     driver: bridge
     enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+        - subnet: fd00:172:28::/64
 
   # Connectivity: Public traffic routing from the reverse proxy to exposed applications
   traefik-public:
     name: traefik-public
     driver: bridge
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 172.29.0.0/16
+        - subnet: fd00:172:29::/64
 
   # Security: Highly restricted internal network strictly for Traefik to read the Docker socket via proxy
   socket-internal:
