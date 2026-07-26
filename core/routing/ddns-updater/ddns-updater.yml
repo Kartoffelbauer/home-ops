@@ -36,7 +36,7 @@ services:
 
     # Configuration: Global environment variables (Alphabetized)
     environment:
-      CONFIG: '{"settings":[{"provider":"gandi","domain":"${DOMAIN_PRIMARY:-localhost}","ttl":${DDNS_UPDATER_TTL:-300},"ip_version":"${DDNS_UPDATER_IP_VERSION:-ipv4 or ipv6}","personal_access_token":"${GANDIV5_PERSONAL_ACCESS_TOKEN:?}"},{"provider":"gandi","domain":"${DOMAIN_SECONDARY:-localhost}","ttl":${DDNS_UPDATER_TTL:-${DDNS_UPDATER_TTL:-300},"ip_version":"${DDNS_UPDATER_IP_VERSION:-ipv4 or ipv6}","personal_access_token":"${GANDIV5_PERSONAL_ACCESS_TOKEN:?}"}]}'
+      CONFIG: '{"settings":[{"provider":"gandi","domain":"${DOMAIN_PRIMARY:-localhost}","ttl":${DDNS_UPDATER_TTL:-300},"ip_version":"${DDNS_UPDATER_IP_VERSION:-ipv4 or ipv6}","personal_access_token":"${GANDIV5_PERSONAL_ACCESS_TOKEN:?}"},{"provider":"gandi","domain":"${DOMAIN_SECONDARY:-localhost}","ttl":${DDNS_UPDATER_TTL:-300},"ip_version":"${DDNS_UPDATER_IP_VERSION:-ipv4 or ipv6}","personal_access_token":"${GANDIV5_PERSONAL_ACCESS_TOKEN:?}"}]}'
       LOG_LEVEL: "${DDNS_UPDATER_LOG_LEVEL:-info}"
       RESOLVER_ADDRESS: "1.1.1.1:53"
       SERVER_ENABLED: "false"
