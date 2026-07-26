@@ -103,7 +103,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.middlewares.z2m-auth.basicauth.users=${ZIGBEE_DASHBOARD_CREDENTIALS:?}"
-      - "traefik.http.middlewares.z2m-ipwhite.ipallowlist.sourcerange=127.0.0.1/32,${HOST_LOCAL_IPV4_SUBNET:-192.168.178.0/24},${HOST_LOCAL_IPV6_SUBNET:-fd00::/64}"
+      - "traefik.http.middlewares.z2m-ipwhite.ipallowlist.sourcerange=127.0.0.1/32,${HOST_LOCAL_IPV4_SUBNET:-192.168.178.0/24},${HOST_LOCAL_IPV6_SUBNET:-fd00::/8}"
       - "traefik.http.routers.z2m.entrypoints=websecure"
       - "traefik.http.routers.z2m.middlewares=z2m-ipwhite@docker,z2m-auth@docker"
       - "traefik.http.routers.z2m.rule=Host(`${ZIGBEE_SUBDOMAIN:-z2m}.${DOMAIN_PRIMARY:-localhost}`)"
