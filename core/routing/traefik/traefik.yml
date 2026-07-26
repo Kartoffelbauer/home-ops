@@ -138,7 +138,7 @@ services:
       # --- 2. Middlewares Hosted by this Service ---
       # Secure the Traefik dashboard with Basic Authentication
       - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_CREDENTIALS:?}"
-      - "traefik.http.middlewares.traefik-ipwhite.ipallowlist.sourcerange=127.0.0.1/32,${HOST_LOCAL_IPV4_SUBNET:-192.168.178.0/24},${HOST_LOCAL_IPV6_SUBNET:-fd00::/64}"
+      - "traefik.http.middlewares.traefik-ipwhite.ipallowlist.sourcerange=127.0.0.1/32,${HOST_LOCAL_IPV4_SUBNET:-192.168.178.0/24},${HOST_LOCAL_IPV6_SUBNET:-fd00::/8}"
 
       # Dynamic Redirect Middleware: Forwards traffic to the preferred web subdomain
       - "traefik.http.middlewares.redirect-to-web.redirectregex.permanent=true"
