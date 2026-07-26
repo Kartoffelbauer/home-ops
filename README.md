@@ -146,7 +146,7 @@ sudo ufw allow in proto tcp from <LAN_SUBNET_V4> to <HOST_LAN_IPV4> port 30000:4
 Apply the ufw rules immediately:
 
 ```bash
-sudo netplan apply
+sudo ufw reload
 ```
 
 > *Note: `172.16.0.0/12` encapsulates isolated Docker bridge spaces. The explicit `fe80::/10` IPv6 link-local rule eliminates multi-second Happy Eyeballs fallback lookup delays on modern client devices.*
