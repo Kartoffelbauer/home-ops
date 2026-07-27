@@ -66,28 +66,22 @@ services:
         ${HOST_LOCAL_IPV4_ADDR:-0.0.0.0} ${OCIS_SUBDOMAIN:-ocis}.${DOMAIN_PRIMARY:-localhost}
         ${HOST_LOCAL_IPV4_ADDR:-0.0.0.0} ${PIHOLE_SUBDOMAIN:-pihole}.${DOMAIN_PRIMARY:-localhost}
         ${HOST_LOCAL_IPV4_ADDR:-0.0.0.0} ${ROUNDCUBE_SUBDOMAIN:-mail}.${DOMAIN_PRIMARY:-localhost}
-        ${HOST_LOCAL_IPV4_ADDR:-0.0.0.0} ${WEBSITE_SUBDOMAIN:-www}.${DOMAIN_PRIMARY:-localhost}
+        ${HOST_LOCAL_IPV4_ADDR:-0.0.0.0} ${WEB_SUBDOMAIN:-www}.${DOMAIN_PRIMARY:-localhost}
         ${HOST_LOCAL_IPV4_ADDR:-0.0.0.0} ${Z2M_SUBDOMAIN:-z2m}.${DOMAIN_PRIMARY:-localhost}
         ${HOST_LOCAL_IPV4_ADDR:-0.0.0.0} ${DOMAIN_SECONDARY:-localhost}
-        ${HOST_LOCAL_IPV4_ADDR:-0.0.0.0} ${HOMEASSISTANT_SUBDOMAIN:-home}.${DOMAIN_SECONDARY:-localhost}
-        ${HOST_LOCAL_IPV4_ADDR:-0.0.0.0} ${OCIS_SUBDOMAIN:-ocis}.${DOMAIN_SECONDARY:-localhost}
-        ${HOST_LOCAL_IPV4_ADDR:-0.0.0.0} ${PIHOLE_SUBDOMAIN:-pihole}.${DOMAIN_SECONDARY:-localhost}
         ${HOST_LOCAL_IPV4_ADDR:-0.0.0.0} ${ROUNDCUBE_SUBDOMAIN:-mail}.${DOMAIN_SECONDARY:-localhost}
-        ${HOST_LOCAL_IPV4_ADDR:-0.0.0.0} ${WEBSITE_SUBDOMAIN:-www}.${DOMAIN_SECONDARY:-localhost}
+        ${HOST_LOCAL_IPV4_ADDR:-0.0.0.0} ${WEB_SUBDOMAIN:-www}.${DOMAIN_SECONDARY:-localhost}
         ${GATEWAY_IPV4_ADDR:-0.0.0.0} ${GATEWAY_NAME:-gateway}
         ${HOST_LOCAL_IPV6_ADDR:-::1} ${DOMAIN_PRIMARY:-localhost}
         ${HOST_LOCAL_IPV6_ADDR:-::1} ${HOMEASSISTANT_SUBDOMAIN:-home}.${DOMAIN_PRIMARY:-localhost}
         ${HOST_LOCAL_IPV6_ADDR:-::1} ${OCIS_SUBDOMAIN:-ocis}.${DOMAIN_PRIMARY:-localhost}
         ${HOST_LOCAL_IPV6_ADDR:-::1} ${PIHOLE_SUBDOMAIN:-pihole}.${DOMAIN_PRIMARY:-localhost}
         ${HOST_LOCAL_IPV6_ADDR:-::1} ${ROUNDCUBE_SUBDOMAIN:-mail}.${DOMAIN_PRIMARY:-localhost}
-        ${HOST_LOCAL_IPV6_ADDR:-::1} ${WEBSITE_SUBDOMAIN:-www}.${DOMAIN_PRIMARY:-localhost}
+        ${HOST_LOCAL_IPV6_ADDR:-::1} ${WEB_SUBDOMAIN:-www}.${DOMAIN_PRIMARY:-localhost}
         ${HOST_LOCAL_IPV6_ADDR:-::1} ${Z2M_SUBDOMAIN:-z2m}.${DOMAIN_PRIMARY:-localhost}
         ${HOST_LOCAL_IPV6_ADDR:-::1} ${DOMAIN_SECONDARY:-localhost}
-        ${HOST_LOCAL_IPV6_ADDR:-::1} ${HOMEASSISTANT_SUBDOMAIN:-home}.${DOMAIN_SECONDARY:-localhost}
-        ${HOST_LOCAL_IPV6_ADDR:-::1} ${OCIS_SUBDOMAIN:-ocis}.${DOMAIN_SECONDARY:-localhost}
-        ${HOST_LOCAL_IPV6_ADDR:-::1} ${PIHOLE_SUBDOMAIN:-pihole}.${DOMAIN_SECONDARY:-localhost}
         ${HOST_LOCAL_IPV6_ADDR:-::1} ${ROUNDCUBE_SUBDOMAIN:-mail}.${DOMAIN_SECONDARY:-localhost}
-        ${HOST_LOCAL_IPV6_ADDR:-::1} ${WEBSITE_SUBDOMAIN:-www}.${DOMAIN_SECONDARY:-localhost}
+        ${HOST_LOCAL_IPV6_ADDR:-::1} ${WEB_SUBDOMAIN:-www}.${DOMAIN_SECONDARY:-localhost}
         ${GATEWAY_IPV6_ADDR:-::1} ${GATEWAY_NAME:-gateway}
       FTLCONF_dns_listeningMode: "ALL"
       FTLCONF_dns_upstreams: "1.1.1.1;1.0.0.1"
@@ -95,6 +89,7 @@ services:
       FTLCONF_ntp_ipv6_active: "false"
       FTLCONF_ntp_sync_active: "false"
       FTLCONF_webserver_api_password: "${PIHOLE_WEB_PASSWORD:?}"
+      FTLCONF_webserver_domain: "${PIHOLE_SUBDOMAIN:-pihole}.${DOMAIN_PRIMARY:-localhost}"
       FTLCONF_webserver_port: "80"
       PIHOLE_GID: "${PIHOLE_PGID:-1002}"
       PIHOLE_UID: "${PIHOLE_PUID:-1002}"
