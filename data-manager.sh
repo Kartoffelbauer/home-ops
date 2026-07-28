@@ -34,7 +34,7 @@ COMMAND=""
 TARGET_PATH=""
 
 # ------------------------------------------------------------------------------
-# 2. HELPER FUNCTIONS (Clean Code / DRY)
+# 2. HELPER FUNCTIONS
 # ------------------------------------------------------------------------------
 
 # Centralized logging function handling terminal output and root file logging
@@ -45,20 +45,19 @@ _log() {
   local timestamp
   timestamp=$(date +"%Y-%m-%d %H:%M:%S")
 
-  # 1. Terminal Output (Colorized)
+  # Terminal Output (Colorized)
   if [ "$level" = "ERROR" ]; then
     echo -e "${color}[${level}]\e[0m ${message}" >&2
   else
     echo -e "${color}[${level}]\e[0m ${message}"
   fi
 
-  # 2. File Logging (Only if root to prevent permission errors)
+  # File Logging (Only if root to prevent permission errors)
   if [ "$EUID" -eq 0 ]; then
     echo "[${timestamp}] [${level}] ${message}" >> "$LOG_FILE"
   fi
 }
 
-# Wrapper logging functions for standardized formatting
 log_info()    { _log "INFO"    "\e[34m" "$1"; }
 log_success() { _log "SUCCESS" "\e[32m" "$1"; }
 log_error()   { _log "ERROR"   "\e[31m" "$1"; }
@@ -91,7 +90,34 @@ check_root() {
   fi
 }
 
-# Displays script usage guidelines and exits
+# Safely loads multiline command output into an array using Bash namerefs
+_load_array() {
+  local -n _array_ref=$1
+  shift
+  _array_ref=()
+  [[ $# -eq 0 ]] && return 0 # Exit if no command is provided
+
+  while IFS= read -r line; do
+    [[ -n "$line" ]] && _array_ref+=("$line")
+  done < <("$@")
+}
+
+# Unified user confirmation prompt for destructive actions
+confirm_action() {
+  local message="$1"
+  if [[ "$DRY_RUN" == false ]]; then
+    echo -e "${message}"
+    read -p "Are you absolutely sure you want to proceed? (y/N) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+      log_info "Action aborted by user."
+      exit 0
+    fi
+  else
+    log_info "[DRY-RUN] Would pause for user confirmation here."
+  fi
+}
+
 show_usage() {
   cat << EOF
 Usage: $0 [options] <command> <target_path>
@@ -122,9 +148,9 @@ get_backup_data_dirs() {
     -not -path "*/core/routing/traefik/*"
 }
 
-# Finds ALL 'data' directories on disk (unfiltered) for complete state purging during restores
+# Finds ALL 'data' directories on disk (unfiltered) for complete state purging
 get_all_data_dirs() {
-    find "${PROJECT_ROOT}" -type d -name "data" -not -path "*/\.git/*"
+  find "${PROJECT_ROOT}" -type d -name "data" -not -path "*/\.git/*"
 }
 
 # Maps a single 'data' directory to its parent `<service>.yml` Compose file
@@ -133,10 +159,7 @@ get_yml_for_data_dir() {
   local parent_dir
   parent_dir="$(dirname "$data_path")"
 
-  local app_name
-  app_name="$(basename "$parent_dir")"
-
-  local expected_yml="${parent_dir}/${app_name}.yml"
+  local expected_yml="${parent_dir}/$(basename "$parent_dir").yml"
 
   if [[ -f "$expected_yml" ]]; then
     echo "$expected_yml"
@@ -145,15 +168,11 @@ get_yml_for_data_dir() {
 
 # Resolves an array of data paths into a deduplicated list of target YML files
 get_unique_ymls() {
-  local dirs=("$@")
   local ymls=()
-
-  for dir in "${dirs[@]}"; do
+  for dir in "$@"; do
     local yml
     yml=$(get_yml_for_data_dir "$dir")
-    if [[ -n "$yml" ]]; then
-      ymls+=("$yml")
-    fi
+    [[ -n "$yml" ]] && ymls+=("$yml")
   done
 
   if [[ ${#ymls[@]} -gt 0 ]]; then
@@ -161,35 +180,30 @@ get_unique_ymls() {
   fi
 }
 
-# Gracefully stops specific Docker Compose stacks mapped to target YML files
-stop_scoped_stacks() {
+# Unified Compose execution function for starting/stopping scoped stacks
+_manage_stacks() {
+  local action="$1"
+  shift
   local ymls=("$@")
   local env_arg=()
 
-  if [[ -f "${PROJECT_ROOT}/.env" ]]; then
-    env_arg=("--env-file" "${PROJECT_ROOT}/.env")
-  fi
+  [[ -f "${PROJECT_ROOT}/.env" ]] && env_arg=("--env-file" "${PROJECT_ROOT}/.env")
 
   for yml in "${ymls[@]}"; do
-    log_info "Stopping associated stack: ${yml#${PROJECT_ROOT}/}"
-    execute docker compose --project-directory "${PROJECT_ROOT}" "${env_arg[@]:-}" -f "$yml" stop
+    local stack_name="${yml#${PROJECT_ROOT}/}"
+
+    if [[ "$action" == "stop" ]]; then
+      log_info "Stopping associated stack: ${stack_name}"
+      execute docker compose --project-directory "${PROJECT_ROOT}" "${env_arg[@]:-}" -f "$yml" stop
+    else
+      log_info "Starting associated stack: ${stack_name}"
+      execute docker compose --project-directory "${PROJECT_ROOT}" "${env_arg[@]:-}" -f "$yml" up -d
+    fi
   done
 }
 
-# Brings specific Docker Compose stacks back online using their target YML files
-start_scoped_stacks() {
-  local ymls=("$@")
-  local env_arg=()
-
-  if [[ -f "${PROJECT_ROOT}/.env" ]]; then
-    env_arg=("--env-file" "${PROJECT_ROOT}/.env")
-  fi
-
-  for yml in "${ymls[@]}"; do
-    log_info "Starting associated stack: ${yml#${PROJECT_ROOT}/}"
-    execute docker compose --project-directory "${PROJECT_ROOT}" "${env_arg[@]:-}" -f "$yml" up -d
-  done
-}
+stop_scoped_stacks()  { _manage_stacks "stop" "$@"; }
+start_scoped_stacks() { _manage_stacks "start" "$@"; }
 
 # Retrieves current Git tag or short commit hash
 get_current_git_tag() {
@@ -200,7 +214,6 @@ get_current_git_tag() {
 # 4. CORE LOGIC: BACKUP
 # ------------------------------------------------------------------------------
 
-# Executes scoped backup process for all discovered data directories
 do_backup() {
   local dest_dir="$1"
 
@@ -214,10 +227,8 @@ do_backup() {
   log_info "INITIATING BACKUP PROCESS"
 
   # 1. Discover backup-eligible data directories
-  local data_dirs=()
-  while IFS= read -r dir; do
-    [[ -n "$dir" ]] && data_dirs+=("$dir")
-  done < <(get_backup_data_dirs)
+  local data_dirs
+  _load_array data_dirs get_backup_data_dirs
 
   if [[ ${#data_dirs[@]} -eq 0 ]]; then
     log_warn "No eligible 'data' directories found. Nothing to backup."
@@ -225,18 +236,14 @@ do_backup() {
   fi
 
   # 2. Map data directories to unique service YML files
-  local target_ymls=()
-  local ymls_raw
-  ymls_raw=$(get_unique_ymls "${data_dirs[@]}")
-  [[ -n "$ymls_raw" ]] && readarray -t target_ymls <<< "$ymls_raw"
+  local target_ymls
+  _load_array target_ymls get_unique_ymls "${data_dirs[@]}"
 
   # 3. Stop running containers on target stacks
-  if [[ ${#target_ymls[@]} -gt 0 ]]; then
-    stop_scoped_stacks "${target_ymls[@]}"
-  fi
+  [[ ${#target_ymls[@]} -gt 0 ]] && stop_scoped_stacks "${target_ymls[@]}"
 
   # 4. Prepare targets relative to project root
-  cd "${PROJECT_ROOT}"
+  cd "${PROJECT_ROOT}" || exit 1
   local targets=()
   for dir in "${data_dirs[@]}"; do
     targets+=("${dir#${PROJECT_ROOT}/}")
@@ -247,6 +254,7 @@ do_backup() {
   local current_tag
   current_tag=$(get_current_git_tag)
   log_info "Pinning backup to Git tag: $current_tag"
+
   if [[ "$DRY_RUN" == false ]]; then
     echo "$current_tag" > "$TAG_FILENAME"
   else
@@ -264,9 +272,7 @@ do_backup() {
   fi
 
   # 7. Restart target stacks
-  if [[ ${#target_ymls[@]} -gt 0 ]]; then
-    start_scoped_stacks "${target_ymls[@]}"
-  fi
+  [[ ${#target_ymls[@]} -gt 0 ]] && start_scoped_stacks "${target_ymls[@]}"
 
   log_success "Backup completed successfully: ${dest_file}"
 }
@@ -275,11 +281,10 @@ do_backup() {
 # 5. CORE LOGIC: RESTORE
 # ------------------------------------------------------------------------------
 
-# Cleans current data state to prevent merging corrupted or stale files
 wipe_current_state() {
   local dirs=("$@")
-    log_info "Wiping ALL existing data directories to achieve a clean slate..."
-  cd "${PROJECT_ROOT}"
+  log_info "Wiping ALL existing data directories to achieve a clean slate..."
+  cd "${PROJECT_ROOT}" || exit 1
 
   for dir in "${dirs[@]}"; do
     if [[ -d "$dir" ]]; then
@@ -297,35 +302,22 @@ wipe_current_state() {
   log_success "Clean slate achieved."
 }
 
-# Verifies Git tag embedded in backup against current repository tag state
 verify_git_tag() {
   local archive_file="$1"
   local current_tag
   current_tag=$(get_current_git_tag)
-  local backup_tag="unknown"
 
   # Direct file extraction prevents SIGPIPE failures under set -o pipefail
+  local backup_tag
   backup_tag=$(tar -xzf "$archive_file" -O "$TAG_FILENAME" 2>/dev/null || echo "missing_in_archive")
   [[ -z "$backup_tag" ]] && backup_tag="missing_in_archive"
 
-  # Handle tag mismatch warning and prompt user
   if [[ "$backup_tag" != "$current_tag" ]]; then
     log_warn "Git tag mismatch! Backup tag: \e[1m$backup_tag\e[0m \e[33m| Current tag:\e[0m \e[1m$current_tag\e[0m"
-
-    if [[ "$DRY_RUN" == false ]]; then
-      read -p "Are you absolutely sure you want to proceed with the restore? (y/N) " -n 1 -r
-      echo
-      if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        log_info "Restore aborted by user."
-        exit 0
-      fi
-    else
-      log_info "[DRY-RUN] Would pause for user confirmation here."
-    fi
+    confirm_action "Are you absolutely sure you want to proceed with the restore despite the tag mismatch?"
   fi
 }
 
-# Executes scoped restore process from an archive file
 do_restore() {
   local archive_file="$1"
 
@@ -334,48 +326,31 @@ do_restore() {
     exit 1
   fi
 
-  # Prompt user confirmation for destructive overwrite
-  if [[ "$DRY_RUN" == false ]]; then
-    echo -e "\e[31m[CRITICAL WARNING]\e[0m This will COMPLETELY DELETE all current data directories and replace them with the backup."
-    read -p "Are you absolutely sure you want to proceed? (y/N) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-      echo -e "\e[34m[INFO]\e[0m Restore aborted by user."
-      exit 0
-    fi
-  fi
+  # Require explicit user opt-in before data destruction
+  confirm_action "\e[31m[CRITICAL WARNING]\e[0m This will COMPLETELY DELETE all current data directories and replace them with the backup."
 
   echo -e "\n========================================" >> "$LOG_FILE"
   log_info "INITIATING RESTORE PROCESS"
 
   verify_git_tag "$archive_file"
 
-  # 1. Discover ALL existing data directories on disk to ensure complete shutdown & wipe
-  local wipe_data_dirs=()
-  while IFS= read -r dir; do
-    [[ -n "$dir" ]] && wipe_data_dirs+=("$dir")
-    done < <(get_all_data_dirs)
+  # 1. Discover ALL existing data directories to ensure complete shutdown & wipe
+  local wipe_data_dirs wipe_ymls=()
+  _load_array wipe_data_dirs get_all_data_dirs
 
-  local wipe_ymls=()
-  local wipe_ymls_raw
   if [[ ${#wipe_data_dirs[@]} -gt 0 ]]; then
-    wipe_ymls_raw=$(get_unique_ymls "${wipe_data_dirs[@]}")
-    [[ -n "$wipe_ymls_raw" ]] && readarray -t wipe_ymls <<< "$wipe_ymls_raw"
+    _load_array wipe_ymls get_unique_ymls "${wipe_data_dirs[@]}"
   fi
 
   # 2. Stop running stacks on all existing data directories
-  if [[ ${#wipe_ymls[@]} -gt 0 ]]; then
-    stop_scoped_stacks "${wipe_ymls[@]}"
-  fi
+  [[ ${#wipe_ymls[@]} -gt 0 ]] && stop_scoped_stacks "${wipe_ymls[@]}"
 
   # 3. Wipe ALL existing data directories (achieving a pure clean slate)
-  if [[ ${#wipe_data_dirs[@]} -gt 0 ]]; then
-    wipe_current_state "${wipe_data_dirs[@]}"
-  fi
+  [[ ${#wipe_data_dirs[@]} -gt 0 ]] && wipe_current_state "${wipe_data_dirs[@]}"
 
   # 4. Extract archive
   log_info "Extracting backup from: ${archive_file}"
-  cd "${PROJECT_ROOT}"
+  cd "${PROJECT_ROOT}" || exit 1
   if [[ "$DRY_RUN" == true ]]; then
     log_info "[DRY-RUN] tar -xzpvf ${archive_file}"
   else
@@ -390,46 +365,24 @@ do_restore() {
     fi
   fi
 
-    # 5. Discover post-restore target stacks
-  local post_data_dirs=()
-  local post_ymls=()
-  local post_ymls_raw
+  # 5. Discover post-restore target stacks
+  local post_data_dirs post_ymls=()
+  _load_array post_data_dirs get_backup_data_dirs
 
-  if [[ "$DRY_RUN" == true ]]; then
-    # Filter pre-existing dirs using get_backup_data_dirs logic for accurate dry-run preview
-    local dry_dirs=()
-    while IFS= read -r dir; do
-      [[ -n "$dir" ]] && dry_dirs+=("$dir")
-    done < <(get_backup_data_dirs)
-
-    if [[ ${#dry_dirs[@]} -gt 0 ]]; then
-      post_ymls_raw=$(get_unique_ymls "${dry_dirs[@]}")
-      [[ -n "$post_ymls_raw" ]] && readarray -t post_ymls <<< "$post_ymls_raw"
-    fi
-  else
-    while IFS= read -r dir; do
-      [[ -n "$dir" ]] && post_data_dirs+=("$dir")
-    done < <(get_backup_data_dirs)
-
-    if [[ ${#post_data_dirs[@]} -gt 0 ]]; then
-      post_ymls_raw=$(get_unique_ymls "${post_data_dirs[@]}")
-      [[ -n "$post_ymls_raw" ]] && readarray -t post_ymls <<< "$post_ymls_raw"
-    fi
+  if [[ ${#post_data_dirs[@]} -gt 0 ]]; then
+    _load_array post_ymls get_unique_ymls "${post_data_dirs[@]}"
   fi
 
   # 6. Bring restored stacks back online
-  if [[ ${#post_ymls[@]} -gt 0 ]]; then
-    start_scoped_stacks "${post_ymls[@]}"
-  fi
+  [[ ${#post_ymls[@]} -gt 0 ]] && start_scoped_stacks "${post_ymls[@]}"
 
   log_success "Restore completed successfully."
 }
 
 # ------------------------------------------------------------------------------
-# 6. ENTRYPOINT (Argument Parsing & Execution)
+# 6. ENTRYPOINT
 # ------------------------------------------------------------------------------
 
-# Flexible CLI Option Parsing Loop
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run)
@@ -463,24 +416,15 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Validate required CLI command
-if [[ -z "$COMMAND" ]]; then
-  show_usage
-fi
+[[ -z "$COMMAND" ]] && show_usage
 
-# Validate root execution
 check_root
 
 if [[ "$DRY_RUN" == true ]]; then
   log_warn "RUNNING IN DRY-RUN MODE. NO CHANGES WILL BE MADE."
 fi
 
-# Execute command workflow
 case "$COMMAND" in
-  backup)
-    do_backup "$TARGET_PATH"
-    ;;
-  restore)
-    do_restore "$TARGET_PATH"
-    ;;
+  backup)  do_backup "$TARGET_PATH" ;;
+  restore) do_restore "$TARGET_PATH" ;;
 esac
