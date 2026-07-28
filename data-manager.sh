@@ -14,6 +14,9 @@
 # ------------------------------------------------------------------------------
 # 1. STRICT MODE & GLOBAL VARIABLES
 # ------------------------------------------------------------------------------
+# set -e: Exit immediately if a command exits with a non-zero status.
+# set -u: Treat unset variables as an error.
+# set -o pipefail: Return pipeline status as the last non-zero command status.
 set -euo pipefail
 
 # Project and Backup Variables
@@ -34,6 +37,7 @@ TARGET_PATH=""
 # 2. HELPER FUNCTIONS (Clean Code / DRY)
 # ------------------------------------------------------------------------------
 
+# Centralized logging function handling terminal output and root file logging
 _log() {
     local level="$1"
     local color="$2"
@@ -41,22 +45,26 @@ _log() {
     local timestamp
     timestamp=$(date +"%Y-%m-%d %H:%M:%S")
 
+    # 1. Terminal Output (Colorized)
     if [ "$level" = "ERROR" ]; then
         echo -e "${color}[${level}]\e[0m ${message}" >&2
     else
         echo -e "${color}[${level}]\e[0m ${message}"
     fi
 
+    # 2. File Logging (Only if root to prevent permission errors)
     if [ "$EUID" -eq 0 ]; then
         echo "[${timestamp}] [${level}] ${message}" >> "$LOG_FILE"
     fi
 }
 
+# Wrapper logging functions for standardized formatting
 log_info()    { _log "INFO"    "\e[34m" "$1"; }
 log_success() { _log "SUCCESS" "\e[32m" "$1"; }
 log_error()   { _log "ERROR"   "\e[31m" "$1"; }
 log_warn()    { _log "WARN"    "\e[33m" "$1"; }
 
+# Wrapper for executing shell commands with DRY-RUN support and logging
 execute() {
     if [[ "$DRY_RUN" == true ]]; then
         log_info "[DRY-RUN] Would execute: $*"
@@ -65,6 +73,7 @@ execute() {
     fi
 }
 
+# Wrapper for quiet shell operations (e.g., file removals) with DRY-RUN support
 execute_quiet() {
     if [[ "$DRY_RUN" == true ]]; then
         log_info "[DRY-RUN] Would execute: $*"
@@ -73,6 +82,7 @@ execute_quiet() {
     fi
 }
 
+# Asserts root privileges to preserve file permissions and write logs
 check_root() {
     if [ "$EUID" -ne 0 ]; then
         log_error "This script must be run as root to preserve file permissions."
@@ -81,6 +91,7 @@ check_root() {
     fi
 }
 
+# Displays script usage guidelines and exits
 show_usage() {
     cat << EOF
 Usage: $0 [options] <command> <target_path>
@@ -103,12 +114,14 @@ EOF
 # 3. DISCOVERY & MAPPING LOGIC
 # ------------------------------------------------------------------------------
 
+# Finds all 'data' directories, excluding git metadata and ephemeral traefik state
 get_data_dirs() {
     find "${PROJECT_ROOT}" -type d -name "data" \
         -not -path "*/\.git/*" \
         -not -path "*/core/routing/traefik/*"
 }
 
+# Maps a single 'data' directory to its parent `<service>.yml` Compose file
 get_yml_for_data_dir() {
     local data_path="$1"
     local parent_dir
@@ -124,6 +137,7 @@ get_yml_for_data_dir() {
     fi
 }
 
+# Resolves an array of data paths into a deduplicated list of target YML files
 get_unique_ymls() {
     local dirs=("$@")
     local ymls=()
@@ -141,8 +155,7 @@ get_unique_ymls() {
     fi
 }
 
-# Scoped start/stop handlers mapping YMLs to Compose commands
-# Note: Explicitly sets project directory and env file to maintain root context
+# Gracefully stops specific Docker Compose stacks mapped to target YML files
 stop_scoped_stacks() {
     local ymls=("$@")
     local env_arg=()
@@ -153,11 +166,11 @@ stop_scoped_stacks() {
 
     for yml in "${ymls[@]}"; do
         log_info "Stopping associated stack: ${yml#${PROJECT_ROOT}/}"
-        # ${env_arg[@]:-} safely expands to nothing if the array is empty under 'set -u'
         execute docker compose --project-directory "${PROJECT_ROOT}" "${env_arg[@]:-}" -f "$yml" stop
     done
 }
 
+# Brings specific Docker Compose stacks back online using their target YML files
 start_scoped_stacks() {
     local ymls=("$@")
     local env_arg=()
@@ -172,6 +185,7 @@ start_scoped_stacks() {
     done
 }
 
+# Retrieves current Git tag or short commit hash
 get_current_git_tag() {
     (cd "$PROJECT_ROOT" && git describe --tags --always 2>/dev/null) || echo "unknown"
 }
@@ -179,6 +193,8 @@ get_current_git_tag() {
 # ------------------------------------------------------------------------------
 # 4. CORE LOGIC: BACKUP
 # ------------------------------------------------------------------------------
+
+# Executes scoped backup process for all discovered data directories
 do_backup() {
     local dest_dir="$1"
 
@@ -191,6 +207,7 @@ do_backup() {
     echo -e "\n========================================" >> "$LOG_FILE"
     log_info "INITIATING BACKUP PROCESS"
 
+    # 1. Discover data directories
     local data_dirs=()
     while IFS= read -r dir; do
         [[ -n "$dir" ]] && data_dirs+=("$dir")
@@ -201,15 +218,18 @@ do_backup() {
         exit 0
     fi
 
+    # 2. Map data directories to unique service YML files
     local target_ymls=()
     local ymls_raw
     ymls_raw=$(get_unique_ymls "${data_dirs[@]}")
     [[ -n "$ymls_raw" ]] && readarray -t target_ymls <<< "$ymls_raw"
 
+    # 3. Stop running containers on target stacks
     if [[ ${#target_ymls[@]} -gt 0 ]]; then
         stop_scoped_stacks "${target_ymls[@]}"
     fi
 
+    # 4. Prepare targets relative to project root
     cd "${PROJECT_ROOT}"
     local targets=()
     for dir in "${data_dirs[@]}"; do
@@ -217,6 +237,7 @@ do_backup() {
     done
     [[ -f ".env" ]] && targets+=(".env")
 
+    # 5. Embed Git tag metadata into backup payload
     local current_tag
     current_tag=$(get_current_git_tag)
     log_info "Pinning backup to Git tag: $current_tag"
@@ -225,6 +246,7 @@ do_backup() {
     fi
     targets+=("$TAG_FILENAME")
 
+    # 6. Create compressed archive
     log_info "Creating backup archive at: ${dest_file}"
     if [[ "$DRY_RUN" == true ]]; then
         log_info "[DRY-RUN] tar -czpvf ${dest_file} ${targets[*]}"
@@ -233,6 +255,7 @@ do_backup() {
         rm -f "$TAG_FILENAME"
     fi
 
+    # 7. Restart target stacks
     if [[ ${#target_ymls[@]} -gt 0 ]]; then
         start_scoped_stacks "${target_ymls[@]}"
     fi
@@ -243,6 +266,8 @@ do_backup() {
 # ------------------------------------------------------------------------------
 # 5. CORE LOGIC: RESTORE
 # ------------------------------------------------------------------------------
+
+# Cleans current data state to prevent merging corrupted or stale files
 wipe_current_state() {
     local dirs=("$@")
     log_info "Wiping existing data directories to ensure a clean slate..."
@@ -263,19 +288,21 @@ wipe_current_state() {
     log_success "Clean slate achieved."
 }
 
+# Verifies Git tag embedded in backup against current repository tag state
 verify_git_tag() {
     local archive_file="$1"
     local current_tag
     current_tag=$(get_current_git_tag)
     local backup_tag="unknown"
 
-    # Always read the archive, even in dry-run, as it's non-destructive
+    # Extract tag metadata directly from archive payload
     if tar -tf "$archive_file" | grep -q "^${TAG_FILENAME}$"; then
         backup_tag=$(tar -xzf "$archive_file" -O "$TAG_FILENAME" 2>/dev/null || echo "unknown")
     else
         backup_tag="missing_in_archive"
     fi
 
+    # Handle tag mismatch warning and prompt user
     if [[ "$backup_tag" != "$current_tag" ]]; then
         log_warn "Git tag mismatch! Backup tag: \e[1m$backup_tag\e[0m \e[33m| Current tag:\e[0m \e[1m$current_tag\e[0m"
 
@@ -292,6 +319,7 @@ verify_git_tag() {
     fi
 }
 
+# Executes scoped restore process from an archive file
 do_restore() {
     local archive_file="$1"
 
@@ -300,6 +328,7 @@ do_restore() {
         exit 1
     fi
 
+    # Prompt user confirmation for destructive overwrite
     if [[ "$DRY_RUN" == false ]]; then
         echo -e "\e[31m[CRITICAL WARNING]\e[0m This will COMPLETELY DELETE all current data directories and replace them with the backup."
         read -p "Are you absolutely sure you want to proceed? (y/N) " -n 1 -r
@@ -315,6 +344,7 @@ do_restore() {
 
     verify_git_tag "$archive_file"
 
+    # 1. Discover pre-restore directories and target stacks
     local pre_data_dirs=()
     while IFS= read -r dir; do
         [[ -n "$dir" ]] && pre_data_dirs+=("$dir")
@@ -327,14 +357,17 @@ do_restore() {
         [[ -n "$pre_ymls_raw" ]] && readarray -t pre_ymls <<< "$pre_ymls_raw"
     fi
 
+    # 2. Stop running target stacks
     if [[ ${#pre_ymls[@]} -gt 0 ]]; then
         stop_scoped_stacks "${pre_ymls[@]}"
     fi
 
+    # 3. Wipe existing state
     if [[ ${#pre_data_dirs[@]} -gt 0 ]]; then
         wipe_current_state "${pre_data_dirs[@]}"
     fi
 
+    # 4. Extract archive
     log_info "Extracting backup from: ${archive_file}"
     cd "${PROJECT_ROOT}"
     if [[ "$DRY_RUN" == true ]]; then
@@ -343,12 +376,13 @@ do_restore() {
         tar -xzpvf "${archive_file}" 2>&1 | tee -a "$LOG_FILE"
     fi
 
+    # 5. Discover post-restore directories and target stacks
     local post_data_dirs=()
     local post_ymls=()
     local post_ymls_raw
 
-    # In dry-run, fallback to pre-dirs since tar didn't actually extract new folders
     if [[ "$DRY_RUN" == true ]]; then
+        # Fallback to pre-restore stack mapping during dry runs
         post_ymls=("${pre_ymls[@]:-}")
     else
         while IFS= read -r dir; do
@@ -361,6 +395,7 @@ do_restore() {
         fi
     fi
 
+    # 6. Bring restored stacks back online
     if [[ ${#post_ymls[@]} -gt 0 ]]; then
         start_scoped_stacks "${post_ymls[@]}"
     fi
@@ -372,6 +407,7 @@ do_restore() {
 # 6. ENTRYPOINT (Argument Parsing & Execution)
 # ------------------------------------------------------------------------------
 
+# Parse CLI options and arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --dry-run)
@@ -387,7 +423,7 @@ while [[ $# -gt 0 ]]; do
                 show_usage
             fi
 
-            # Ensure TARGET_PATH is absolute to survive 'cd' operations later
+            # Resolve target path to an absolute path before working directory changes
             if [[ ! "$TARGET_PATH" = /* ]]; then
                 TARGET_PATH="$(pwd)/$TARGET_PATH"
             fi
@@ -401,16 +437,19 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Validate required CLI command
 if [[ -z "$COMMAND" ]]; then
     show_usage
 fi
 
+# Validate root execution
 check_root
 
 if [[ "$DRY_RUN" == true ]]; then
     log_warn "RUNNING IN DRY-RUN MODE. NO CHANGES WILL BE MADE."
 fi
 
+# Execute command workflow
 case "$COMMAND" in
     backup)
         do_backup "$TARGET_PATH"
