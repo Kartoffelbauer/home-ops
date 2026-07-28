@@ -33,6 +33,10 @@ DRY_RUN=false
 COMMAND=""
 TARGET_PATH=""
 
+# Dynamic State Tracking for Safe Error Recovery
+DESTRUCTIVE_PHASE=false
+ACTIVE_STOPPED_YMLS=()
+
 # ------------------------------------------------------------------------------
 # 2. HELPER FUNCTIONS
 # ------------------------------------------------------------------------------
@@ -80,6 +84,44 @@ execute_quiet() {
     "$@"
   fi
 }
+
+# Safely restores a stashed .env file if the original is missing
+restore_stashed_env() {
+  if [[ -f "${PROJECT_ROOT}/.env.bak" && ! -f "${PROJECT_ROOT}/.env" ]]; then
+    log_warn "Restoring stashed .env file..."
+    execute_quiet mv -f "${PROJECT_ROOT}/.env.bak" "${PROJECT_ROOT}/.env"
+  fi
+}
+
+# Context-aware error recovery executed if the script exits unexpectedly
+on_error_cleanup() {
+  local exit_code=$?
+  if [[ $exit_code -ne 0 ]]; then
+    log_error "Script failed with exit code ${exit_code}."
+
+    # 1. Safe Cleanup: Remove lingering tag file if present
+    execute_quiet rm -f "${PROJECT_ROOT}/${TAG_FILENAME}"
+
+    # 2. Safe Cleanup: Restore stashed .env if it was left behind
+    restore_stashed_env
+
+    # 3. Context-Aware Stack Recovery
+    if [[ "$DESTRUCTIVE_PHASE" == true ]]; then
+      log_error "================================================================="
+      log_error "CRITICAL FAILURE DURING DESTRUCTIVE RESTORE PHASE!"
+      log_error "Data directories may be in a partial, wiped, or corrupted state."
+      log_error "Automatic container restart has been ABORTED to prevent corruption."
+      log_error "Please investigate the issue and intervene manually."
+      log_error "================================================================="
+    elif [[ ${#ACTIVE_STOPPED_YMLS[@]} -gt 0 ]]; then
+      log_warn "Attempting safe recovery restart of stopped stacks (no data was modified)..."
+      start_scoped_stacks "${ACTIVE_STOPPED_YMLS[@]}" || log_error "Failed to restart some stacks automatically."
+    fi
+  fi
+}
+
+# Attach the trap
+trap on_error_cleanup EXIT
 
 # Asserts root privileges to preserve file permissions and write logs
 check_root() {
@@ -202,8 +244,15 @@ _manage_stacks() {
   done
 }
 
-stop_scoped_stacks()  { _manage_stacks "stop" "$@"; }
-start_scoped_stacks() { _manage_stacks "start" "$@"; }
+stop_scoped_stacks() {
+  _manage_stacks "stop" "$@"
+  ACTIVE_STOPPED_YMLS=("${@}")
+}
+
+start_scoped_stacks() {
+  _manage_stacks "start" "$@"
+  ACTIVE_STOPPED_YMLS=()
+}
 
 # Retrieves current Git tag or short commit hash
 get_current_git_tag() {
@@ -345,6 +394,9 @@ do_restore() {
   # 2. Stop running stacks on all existing data directories
   [[ ${#wipe_ymls[@]} -gt 0 ]] && stop_scoped_stacks "${wipe_ymls[@]}"
 
+  # Flag active: Any failure past this point requires manual intervention
+  DESTRUCTIVE_PHASE=true
+
   # 3. Wipe ALL existing data directories (achieving a pure clean slate)
   [[ ${#wipe_data_dirs[@]} -gt 0 ]] && wipe_current_state "${wipe_data_dirs[@]}"
 
@@ -356,13 +408,8 @@ do_restore() {
   else
     tar -xzpvf "${archive_file}" 2>&1 | tee -a "$LOG_FILE"
 
-    # Restore stashed .env file if the archive didn't contain a replacement
-    if [[ ! -f ".env" && -f ".env.bak" ]]; then
-      log_warn "Archive did not contain a .env file. Restoring original .env state."
-      mv -f ".env.bak" ".env"
-    else
-      rm -f ".env.bak"
-    fi
+    restore_stashed_env
+    execute_quiet rm -f "${PROJECT_ROOT}/.env.bak"
   fi
 
   # 5. Discover post-restore target stacks
@@ -372,6 +419,9 @@ do_restore() {
   if [[ ${#post_data_dirs[@]} -gt 0 ]]; then
     _load_array post_ymls get_unique_ymls "${post_data_dirs[@]}"
   fi
+
+  # Extraction successful. Destructive phase over.
+  DESTRUCTIVE_PHASE=false
 
   # 6. Bring restored stacks back online
   [[ ${#post_ymls[@]} -gt 0 ]] && start_scoped_stacks "${post_ymls[@]}"
