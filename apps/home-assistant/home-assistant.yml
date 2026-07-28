@@ -24,7 +24,7 @@ services:
   home-assistant-mqtt-init:
     extends:
       file: ../../shared/templates.yml
-      service: base-init
+      service: base-init-extended
     container_name: home-assistant-mqtt-init
 
     # Lifecycle: Runs after base structure exists, before downloading external extensions
