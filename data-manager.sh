@@ -118,6 +118,7 @@ EOF
 get_data_dirs() {
     find "${PROJECT_ROOT}" -type d -name "data" \
         -not -path "*/\.git/*" \
+        -not -path "*/core/routing/ddns-updater/*" \
         -not -path "*/core/routing/traefik/*"
 }
 
