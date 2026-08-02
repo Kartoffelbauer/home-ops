@@ -32,10 +32,10 @@ washdata_appliance:
       {% set ACTIVE_STATES = ['starting', 'running', 'rinse', 'paused', 'user_paused', 'ending'] %}
       {% set prg_text = program if program and program | lower not in ['unknown', 'off', 'auto_detect', 'detecting...', 'none', 'unavailable'] else 'Detecting...' %}
 
-      <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+      <div style="position: relative; width: 100%;">
         <span>[[name]]</span>
         {% if status in ACTIVE_STATES or status == 'anti_wrinkle' %}
-          <span style="font-size: 0.85em; color: var(--secondary-text-color); font-weight: normal; text-align: right;">
+          <span style="position: absolute; right: 0; font-size: 0.85em; color: var(--secondary-text-color); font-weight: normal;">
             {{ prg_text }} · {{ power }} W
           </span>
         {% endif %}
