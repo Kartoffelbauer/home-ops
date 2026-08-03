@@ -204,12 +204,12 @@ washdata_appliance:
 
 
 # ==============================================================================
-# Template: smart_switch_appliance
+# Template: switch_appliance
 # Description: Universal Mushroom card for lights, sockets, and switches with
 #              optional wattage monitoring and toggle confirmation popup.
 # ==============================================================================
 
-smart_switch_appliance:
+switch_appliance:
   default:
     - name: none
     - icon: mdi:power-socket-de
@@ -245,13 +245,5 @@ smart_switch_appliance:
       {% if is_state('[[switch_entity]]', 'on') %}
         amber
       {% endif %}
-    tap_action: >-
-      {# Dynamically inject toggle action with optional confirmation dialog #}
-      {% set confirm_msg = '[[confirmation_text]]' %}
-      {% if confirm_msg and confirm_msg | lower != 'none' %}
-        action: toggle
-        confirmation:
-          text: "{{ confirm_msg }}"
-      {% else %}
-        action: toggle
-      {% endif %}
+    tap_action:
+      action: toggle
