@@ -229,14 +229,18 @@ switch_appliance:
         {{ state_attr('[[switch_entity]]', 'friendly_name') | default('Switch', true) }}
       {% endif %}
     secondary: >-
-      {# Fetch translated switch state and append power draw if active & entity configured #}
+      {# Fetch translated switch state and append power draw if active, configured, and > 0 W #}
       {% set state_str = state_translated('[[switch_entity]]') %}
       {% set power_entity = '[[sensor_power_entity]]' %}
       {% set has_power = power_entity and power_entity | lower not in ['none', 'unknown', 'unavailable'] %}
 
       {% if is_state('[[switch_entity]]', 'on') and has_power %}
         {% set pwr_val = states(power_entity) | float(0) | round(0) %}
-        {{ state_str }} · {{ pwr_val }} W
+        {% if pwr_val > 0 %}
+          {{ state_str }} · {{ pwr_val }} W
+        {% else %}
+          {{ state_str }}
+        {% endif %}
       {% else %}
         {{ state_str }}
       {% endif %}
