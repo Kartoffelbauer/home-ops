@@ -205,23 +205,24 @@ washdata_appliance:
 
 # ==============================================================================
 # Template: switch_appliance
-# Description: Universal Mushroom card for lights, sockets, and switches with
-#              optional wattage monitoring and toggle confirmation popup.
+# Description: Production-grade Mushroom template card with safe UX principles
+#              for critical appliances (dishwasher, washing machine, server).
 # ==============================================================================
 
 switch_appliance:
   default:
     - name: none
     - icon: mdi:power-socket-de
+    - critical_bool: false
     - switch_entity: none
     - sensor_power_entity: none
-    - confirmation_text: none
   card:
     type: custom:mushroom-template-card
     entity: "[[switch_entity]]"
     primary: >-
       {# Safely resolve card display name #}
       {% set custom_name = '[[name]]' %}
+
       {% if custom_name and custom_name | lower != 'none' %}
         {{ custom_name }}
       {% else %}
@@ -241,9 +242,35 @@ switch_appliance:
       {% endif %}
     icon: "[[icon]]"
     color: >-
-      {# Apply active color when entity is on #}
+      {# Vibrant active color when running; clean neutral when idle #}
       {% if is_state('[[switch_entity]]', 'on') %}
-        amber
+        {% if '[[critical_bool]]' | bool %}
+          deep-orange
+        {% else %}
+          amber
+        {% endif %}
+      {% endif %}
+    badge_icon: >-
+      {# Use shield-check when armed/idle, shield-alert when actively drawing power #}
+      {% if '[[critical_bool]]' | bool %}
+        {% if is_state('[[switch_entity]]', 'on') %}
+          mdi:shield-alert
+        {% else %}
+          mdi:shield-check
+        {% endif %}
+      {% endif %}
+    badge_color: >-
+      {# Orange/red badge during active running cycles, subtle blue-grey when idle #}
+      {% if '[[critical_bool]]' | bool %}
+        {% if is_state('[[switch_entity]]', 'on') %}
+          red
+        {% else %}
+          blue-grey
+        {% endif %}
       {% endif %}
     tap_action:
       action: toggle
+      confirmation: "[[critical_bool]]"
+    icon_tap_action:
+      action: toggle
+      confirmation: "[[critical_bool]]"
