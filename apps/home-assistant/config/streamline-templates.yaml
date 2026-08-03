@@ -204,35 +204,36 @@ washdata_appliance:
 
 
 # ==============================================================================
-# Template: light_appliance
-# Description: Decoupled Mushroom template card for light switches with
-#              optional wattage consumption monitoring.
+# Template: smart_switch_appliance
+# Description: Universal Mushroom card for lights, sockets, and switches with
+#              optional wattage monitoring and toggle confirmation popup.
 # ==============================================================================
 
-light_appliance:
+smart_switch_appliance:
   default:
-    - name: Unnamed
-    - icon: mdi:lightbulb
-    - light_entity: none
+    - name: none
+    - icon: mdi:power-socket-de
+    - switch_entity: none
     - sensor_power_entity: none
+    - confirmation_text: none
   card:
     type: custom:mushroom-template-card
-    entity: "[[light_entity]]"
+    entity: "[[switch_entity]]"
     primary: >-
       {# Safely resolve card display name #}
       {% set custom_name = '[[name]]' %}
-      {% if custom_name and custom_name | lower != 'unnamed' %}
+      {% if custom_name and custom_name | lower != 'none' %}
         {{ custom_name }}
       {% else %}
-        {{ state_attr('[[light_entity]]', 'friendly_name') | default('Unnamed', true) }}
+        {{ state_attr('[[switch_entity]]', 'friendly_name') | default('Switch', true) }}
       {% endif %}
     secondary: >-
-      {# Fetch translated light state and append power draw if active & entity configured #}
-      {% set state_str = state_translated('[[light_entity]]') %}
+      {# Fetch translated switch state and append power draw if active & entity configured #}
+      {% set state_str = state_translated('[[switch_entity]]') %}
       {% set power_entity = '[[sensor_power_entity]]' %}
       {% set has_power = power_entity and power_entity | lower not in ['none', 'unknown', 'unavailable'] %}
 
-      {% if is_state('[[light_entity]]', 'on') and has_power %}
+      {% if is_state('[[switch_entity]]', 'on') and has_power %}
         {% set pwr_val = states(power_entity) | float(0) | round(0) %}
         {{ state_str }} · {{ pwr_val }} W
       {% else %}
@@ -240,11 +241,19 @@ light_appliance:
       {% endif %}
     icon: "[[icon]]"
     color: >-
-      {# Apply active theme color when entity is on, default to neutral when off #}
-      {% if is_state('[[light_entity]]', 'on') %}
+      {# Apply active color when entity is on #}
+      {% if is_state('[[switch_entity]]', 'on') %}
         amber
+      {% endif %}
+    tap_action: >-
+      {# Dynamically inject toggle action with optional confirmation dialog #}
+      {% set confirm_msg = '[[confirmation_text]]' %}
+      {% if confirm_msg and confirm_msg | lower != 'none' %}
+        action: toggle
+        confirmation:
+          text: "{{ confirm_msg }}"
+      {% else %}
+        action: toggle
       {% endif %}
     tap_action:
       action: toggle
-    hold_action:
-      action: more-info
