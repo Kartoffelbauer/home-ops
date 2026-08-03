@@ -255,5 +255,3 @@ smart_switch_appliance:
       {% else %}
         action: toggle
       {% endif %}
-    tap_action:
-      action: toggle
