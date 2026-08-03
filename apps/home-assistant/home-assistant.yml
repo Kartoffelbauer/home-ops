@@ -74,6 +74,7 @@ services:
       # Integration extensions
       - "integration=3dg1luk43/ha_washdata:${HOMEASSISTANT_EXT_HA_WASHDATA_DOCKER_TAG:-latest}"
       - "integration=edmogeor/hass-ga-manual-ui:${HOMEASSISTANT_EXT_HASS_GA_MANUAL_UI_DOCKER_TAG:-latest}"
+      - "integration=frenck/spook:${HOMEASSISTANT_EXT_SPOOK_DOCKER_TAG:-latest}"
       - "integration=marsh4200/ar_smart_ir_builder:${HOMEASSISTANT_EXT_ARSMARTIR_BUILDER_DOCKER_TAG:-latest}"
       - "integration=marsh4200/ar_smart_ir:${HOMEASSISTANT_EXT_ARSMARTIR_DOCKER_TAG:-latest}"
 
