@@ -201,3 +201,50 @@ washdata_appliance:
       {% else %}
         disabled
       {% endif %}
+
+
+# ==============================================================================
+# Template: light_appliance
+# Description: Decoupled Mushroom template card for light switches with
+#              optional wattage consumption monitoring.
+# ==============================================================================
+
+light_appliance:
+  default:
+    - name: Unnamed
+    - icon: mdi:lightbulb
+    - light_entity: none
+    - sensor_power_entity: none
+  card:
+    type: custom:mushroom-template-card
+    entity: "[[light_entity]]"
+    primary: >-
+      {# Safely resolve card display name #}
+      {% set custom_name = '[[name]]' %}
+      {% if custom_name and custom_name | lower != 'unnamed' %}
+        {{ custom_name }}
+      {% else %}
+        {{ state_attr('[[light_entity]]', 'friendly_name') | default('Unnamed', true) }}
+      {% endif %}
+    secondary: >-
+      {# Fetch translated light state and append power draw if active & entity configured #}
+      {% set state_str = state_translated('[[light_entity]]') %}
+      {% set power_entity = '[[sensor_power_entity]]' %}
+      {% set has_power = power_entity and power_entity | lower not in ['none', 'unknown', 'unavailable'] %}
+
+      {% if is_state('[[light_entity]]', 'on') and has_power %}
+        {% set pwr_val = states(power_entity) | float(0) | round(0) %}
+        {{ state_str }} · {{ pwr_val }} W
+      {% else %}
+        {{ state_str }}
+      {% endif %}
+    icon: "[[icon]]"
+    color: >-
+      {# Apply active theme color when entity is on, default to neutral when off #}
+      {% if is_state('[[light_entity]]', 'on') %}
+        amber
+      {% endif %}
+    tap_action:
+      action: toggle
+    hold_action:
+      action: more-info
