@@ -228,21 +228,31 @@ _manage_stacks() {
   shift
   local ymls=("$@")
   local env_arg=()
+  local project_name
+  project_name="$(basename "${PROJECT_ROOT}")"
 
   [[ -f "${PROJECT_ROOT}/.env" ]] && env_arg=("--env-file" "${PROJECT_ROOT}/.env")
 
   for yml in "${ymls[@]}"; do
     local stack_name="${yml#${PROJECT_ROOT}/}"
+    local yml_dir
+    yml_dir="$(dirname "$yml")"
+    local yml_file
+    yml_file="$(basename "$yml")"
 
-    if [[ "$action" == "stop" ]]; then
-      log_info "Stopping associated stack: ${stack_name}"
-      execute docker compose --project-directory "${PROJECT_ROOT}" "${env_arg[@]:-}" -f "$yml" stop
-    else
-      log_info "Starting associated stack: ${stack_name}"
-      execute docker compose --project-directory "${PROJECT_ROOT}" "${env_arg[@]:-}" -f "$yml" up -d
-    fi
+    (
+      cd "$yml_dir" || exit 1
+      if [[ "$action" == "stop" ]]; then
+        log_info "Stopping associated stack: ${stack_name}"
+        execute docker compose -p "$project_name" "${env_arg[@]:-}" -f "$yml_file" stop
+      else
+        log_info "Starting associated stack: ${stack_name}"
+        execute docker compose -p "$project_name" "${env_arg[@]:-}" -f "$yml_file" up -d
+      fi
+    )
   done
 }
+
 
 stop_scoped_stacks() {
   _manage_stacks "stop" "$@"
