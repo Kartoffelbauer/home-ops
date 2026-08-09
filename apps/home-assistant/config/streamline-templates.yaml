@@ -30,11 +30,11 @@ washdata_appliance:
       {% set program = states('[[sensor_program_entity]]') %}
       {% set power = states('[[sensor_power_entity]]') | float(0) | round(0) %}
       {% set ACTIVE_STATES = ['starting', 'running', 'rinse', 'paused', 'user_paused', 'ending'] %}
-      {% set prg_text = program if program and program | lower not in ['unknown', 'off', 'auto_detect', 'detecting...', 'none', 'unavailable'] else 'Detecting...' %}
+      {% set prg_text = program if program and program | lower not in ['unknown', 'auto_detect', 'detecting...', 'none', 'unavailable'] else 'Detecting...' %}
 
       <div style="position: relative; width: 100%;">
         <span>[[name]]</span>
-        {% if status in ACTIVE_STATES or status == 'anti_wrinkle' %}
+        {% if status in ACTIVE_STATES %}
           <span style="position: absolute; right: 0; font-size: 0.85em; color: var(--secondary-text-color); font-weight: normal;">
             {{ prg_text }} · {{ power }} W
           </span>
