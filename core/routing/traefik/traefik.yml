@@ -81,7 +81,7 @@ services:
     # Configuration: Global environment variables (Alphabetized)
     environment:
       DOMAIN_PRIMARY: "${DOMAIN_PRIMARY:-localhost}"
-      GANDIV5_PERSONAL_ACCESS_TOKEN: "${GANDIV5_PERSONAL_ACCESS_TOKEN:?}"
+      CLOUDFLARE_DNS_API_TOKEN: "${CLOUDFLARE_TOKEN:?}"
       HOMEASSISTANT_SUBDOMAIN: "${HOMEASSISTANT_SUBDOMAIN:-home}"
       LEGO_DISABLE_CNAME_SUPPORT: "true"
       TRAEFIK_LOG_LEVEL: "${TRAEFIK_LOG_LEVEL:-info}"
@@ -125,7 +125,7 @@ services:
       - "--certificatesresolvers.resolver.acme.caServer=${TRAEFIK_ACME_CASERVER:-https://acme-staging-v02.api.letsencrypt.org/directory}"
       - "--certificatesresolvers.resolver.acme.dnschallenge=true"
       - "--certificatesresolvers.resolver.acme.dnschallenge.propagation.delayBeforeChecks=30s"
-      - "--certificatesresolvers.resolver.acme.dnschallenge.provider=gandiv5"
+      - "--certificatesresolvers.resolver.acme.dnschallenge.provider=cloudflare"
       - "--certificatesresolvers.resolver.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
       - "--certificatesresolvers.resolver.acme.email=${TRAEFIK_ACME_EMAIL:?}"
       - "--certificatesresolvers.resolver.acme.storage=/data/acme.json"
