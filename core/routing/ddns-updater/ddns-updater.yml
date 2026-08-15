@@ -36,7 +36,7 @@ services:
 
     # Configuration: Global environment variables (Alphabetized)
     environment:
-      CONFIG: '{"settings":[{"provider":"cloudflare","zone_identifier":"${CLOUDFLARE_PRIMARY_ZONE_ID:?}","domain":"${DOMAIN_PRIMARY:-localhost}","ttl":${DDNS_UPDATER_TTL:-300},"token":"${CLOUDFLARE_TOKEN:?}","ip_version":"${DDNS_UPDATER_IP_VERSION:-ipv4 or ipv6}"},{"provider":"cloudflare","zone_identifier":"${CLOUDFLARE_SECONDARY_ZONE_ID:?}","domain":"${DOMAIN_SECONDARY:-localhost}","ttl":${DDNS_UPDATER_TTL:-300},"token":"${CLOUDFLARE_TOKEN:?}","ip_version":"${DDNS_UPDATER_IP_VERSION:-ipv4 or ipv6}"}]}'
+      CONFIG: '{"settings":[{"provider":"cloudflare","zone_identifier":"${CLOUDFLARE_PRIMARY_ZONE_ID:?}","domain":"${DOMAIN_PRIMARY:-localhost}","ttl":${DDNS_UPDATER_TTL:-60},"token":"${CLOUDFLARE_TOKEN:?}","ip_version":"${DDNS_UPDATER_IP_VERSION:-ipv4 or ipv6}"},{"provider":"cloudflare","zone_identifier":"${CLOUDFLARE_SECONDARY_ZONE_ID:?}","domain":"${DOMAIN_SECONDARY:-localhost}","ttl":${DDNS_UPDATER_TTL:-60},"token":"${CLOUDFLARE_TOKEN:?}","ip_version":"${DDNS_UPDATER_IP_VERSION:-ipv4 or ipv6}"}]}'
       LOG_LEVEL: "${DDNS_UPDATER_LOG_LEVEL:-info}"
       RESOLVER_ADDRESS: "1.1.1.1:53"
       SERVER_ENABLED: "false"
