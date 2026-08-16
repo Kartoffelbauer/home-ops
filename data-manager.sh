@@ -5,9 +5,9 @@
 # ==============================================================================
 # Description: Safely backs up and restores all dynamically found 'data'
 #              directories across the modular Docker Compose stack.
-# Note: Performs scoped "Cold Backups" by mapping data directories to their
-#       adjacent `<service>.yml` files, minimizing downtime. Restores perform
-#       a "Clean Slate" wipe to prevent merging corrupted data with backups.
+# Note: Performs scoped, sequential "Cold Backups" per module to minimize
+#       service downtime. Resolves dependencies by targeting the root compose
+#       file. Restores perform a "Clean Slate" wipe before extraction.
 # Log Output: /var/log/home-ops-data-manager.log
 # ==============================================================================
 
@@ -21,6 +21,7 @@ set -euo pipefail
 
 # Project and Backup Variables
 PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+ROOT_COMPOSE="${PROJECT_ROOT}/docker-compose.yml"
 TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
 ARCHIVE_NAME="home-ops-backup_${TIMESTAMP}.tar.gz"
 TAG_FILENAME=".backup_git_tag"
@@ -30,12 +31,14 @@ LOG_FILE="/var/log/home-ops-data-manager.log"
 
 # CLI Flags
 DRY_RUN=false
+STAGE_ON_TARGET=false
 COMMAND=""
 TARGET_PATH=""
 
 # Dynamic State Tracking for Safe Error Recovery
 DESTRUCTIVE_PHASE=false
-ACTIVE_STOPPED_YMLS=()
+ACTIVE_STOPPED_SERVICES=()
+STAGE_DIR=""
 
 # ------------------------------------------------------------------------------
 # 2. HELPER FUNCTIONS
@@ -52,13 +55,19 @@ _log() {
   # Terminal Output (Colorized)
   if [ "$level" = "ERROR" ]; then
     echo -e "${color}[${level}]\e[0m ${message}" >&2
+  elif [ "$level" = "EMPTY" ]; then
+    echo ""
   else
     echo -e "${color}[${level}]\e[0m ${message}"
   fi
 
   # File Logging (Only if root to prevent permission errors)
   if [ "$EUID" -eq 0 ]; then
-    echo "[${timestamp}] [${level}] ${message}" >> "$LOG_FILE"
+    if [ "$level" = "EMPTY" ]; then
+      echo "" >> "$LOG_FILE"
+    else
+      echo "[${timestamp}] [${level}] ${message}" >> "$LOG_FILE"
+    fi
   fi
 }
 
@@ -66,6 +75,7 @@ log_info()    { _log "INFO"    "\e[34m" "$1"; }
 log_success() { _log "SUCCESS" "\e[32m" "$1"; }
 log_error()   { _log "ERROR"   "\e[31m" "$1"; }
 log_warn()    { _log "WARN"    "\e[33m" "$1"; }
+log_empty()   { _log "EMPTY"   ""       ""; }
 
 # Wrapper for executing shell commands with DRY-RUN support and logging
 execute() {
@@ -96,8 +106,18 @@ restore_stashed_env() {
 # Context-aware error recovery executed if the script exits unexpectedly
 on_error_cleanup() {
   local exit_code=$?
+
+  # Clean up temporary staging directory if it exists
+  if [[ -n "${STAGE_DIR:-}" && -d "$STAGE_DIR" ]]; then
+    execute_quiet rm -rf "$STAGE_DIR"
+  fi
+
   if [[ $exit_code -ne 0 ]]; then
-    log_error "Script failed with exit code ${exit_code}."
+    # Suppress generic error output for expected CLI usage errors (exit code 2)
+    if [[ $exit_code -ne 2 ]]; then
+      log_empty
+      log_error "Script failed with exit code ${exit_code}."
+    fi
 
     # 1. Safe Cleanup: Remove lingering tag file if present
     execute_quiet rm -f "${PROJECT_ROOT}/${TAG_FILENAME}"
@@ -107,15 +127,15 @@ on_error_cleanup() {
 
     # 3. Context-Aware Stack Recovery
     if [[ "$DESTRUCTIVE_PHASE" == true ]]; then
-      log_error "================================================================="
+      log_empty
       log_error "CRITICAL FAILURE DURING DESTRUCTIVE RESTORE PHASE!"
       log_error "Data directories may be in a partial, wiped, or corrupted state."
       log_error "Automatic container restart has been ABORTED to prevent corruption."
       log_error "Please investigate the issue and intervene manually."
-      log_error "================================================================="
-    elif [[ ${#ACTIVE_STOPPED_YMLS[@]} -gt 0 ]]; then
-      log_warn "Attempting safe recovery restart of stopped stacks (no data was modified)..."
-      start_scoped_stacks "${ACTIVE_STOPPED_YMLS[@]}" || log_error "Failed to restart some stacks automatically."
+      log_empty
+    elif [[ ${#ACTIVE_STOPPED_SERVICES[@]} -gt 0 ]]; then
+      log_warn "Attempting safe recovery restart of stopped services..."
+      start_services "${ACTIVE_STOPPED_SERVICES[@]}" || log_error "Failed to restart some services automatically."
     fi
   fi
 }
@@ -160,39 +180,56 @@ confirm_action() {
   fi
 }
 
-show_usage() {
+# Explicit help: success exit, stdout, no error notices
+show_help() {
   cat << EOF
-Usage: $0 [options] <command> <target_path>
+Usage: $(basename "$0") [options] <command> <target_path>
 
 Options:
+  -h, --help              Show this help message and exit
   --dry-run               Simulate the process without modifying files or states
+  --stage-on-target       Create the temporary staging directory directly on the target path
+                          (useful if the internal drive is low on space, but may impact performance)
 
 Commands:
   backup  <dest_dir>      Stops scoped containers and backs up data dirs to <dest_dir>
   restore <archive_file>  Stops scoped containers, WIPES current data, and extracts <archive_file>
 
 Examples:
-  sudo $0 backup /mnt/backups
-  sudo $0 restore /mnt/backups/home-ops-backup_2023-10-25_14-00-00.tar.gz --dry-run
+  sudo $(basename "$0") backup /mnt/backups
+  sudo $(basename "$0") restore /mnt/backups/home-ops-backup_2023-10-25_14-00-00.tar.gz --dry-run
 EOF
-  exit 1
+  exit 0
+}
+
+# Syntax failure: error exit, stderr, specific cause + quick hint
+usage_error() {
+  local message="$1"
+  echo -e "\e[31m[ERROR]\e[0m ${message}" >&2
+  echo "Try '$(basename "$0") --help' for more information." >&2
+  exit 2
 }
 
 # ------------------------------------------------------------------------------
 # 3. DISCOVERY & MAPPING LOGIC
 # ------------------------------------------------------------------------------
 
-# Finds 'data' directories intended for backup/restore operations (excluding ephemeral state)
+# Finds top-level 'data' directories intended for operations.
+# Uses -prune to prevent recursion into nested 'data/data' directories.
 get_backup_data_dirs() {
-  find "${PROJECT_ROOT}" -type d -name "data" \
-    -not -path "*/\.git/*" \
-    -not -path "*/core/routing/ddns-updater/*" \
-    -not -path "*/core/routing/traefik/*"
+  find "${PROJECT_ROOT}" -mindepth 1 \
+    -type d -name ".git" -prune -o \
+    -type d -path "*/core/routing/ddns-updater" -prune -o \
+    -type d -path "*/core/routing/traefik" -prune -o \
+    -type d -name "data" -prune -print
 }
 
-# Finds ALL 'data' directories on disk (unfiltered) for complete state purging
+# Finds ALL top-level 'data' directories on disk for complete state purging.
+# Uses -prune to prevent recursion into nested 'data/data' directories.
 get_all_data_dirs() {
-  find "${PROJECT_ROOT}" -type d -name "data" -not -path "*/\.git/*"
+  find "${PROJECT_ROOT}" -mindepth 1 \
+    -type d -name ".git" -prune -o \
+    -type d -name "data" -prune -print
 }
 
 # Maps a single 'data' directory to its parent `<service>.yml` Compose file
@@ -222,46 +259,111 @@ get_unique_ymls() {
   fi
 }
 
-# Unified Compose execution function for starting/stopping scoped stacks
-_manage_stacks() {
+# Statically extracts top-level service names from a compose file using robust YAML parsing
+get_services_from_yml() {
+  local yml="$1"
+  awk '
+    /^services:/ { in_services=1; indent=""; next }
+    in_services {
+      # Skip empty lines (including Windows CRLF) and full-line comments
+      if (/^[ \t\r]*$/ || /^[ \t]*#/) next
+
+      # If we hit a new unindented root key, stop parsing services
+      if (/^[^ \t\r]/) { in_services=0; next }
+
+      # Capture the exact indentation of the first service block
+      if (indent == "") {
+        match($0, /^[ \t]+/)
+        indent = substr($0, RSTART, RLENGTH)
+      }
+
+      # Match keys at the exact indentation level to grab all sibling services
+      regex = "^" indent "[a-zA-Z0-9_-]+:"
+      if ($0 ~ regex) {
+        name = $0
+        sub(/^[ \t]+/, "", name)
+        sub(/:.*/, "", name)
+        print name
+      }
+    }
+  ' "$yml"
+}
+
+# Resolves an array of data directories to a deduplicated list of active services
+get_services_for_data_dirs() {
+  local dirs=("$@")
+  local ymls=() all_services=()
+
+  [[ ${#dirs[@]} -eq 0 ]] && return 0
+
+  _load_array ymls get_unique_ymls "${dirs[@]}"
+
+  for yml in "${ymls[@]}"; do
+    local srvs=()
+    _load_array srvs get_services_from_yml "$yml"
+    [[ ${#srvs[@]} -gt 0 ]] && all_services+=("${srvs[@]}")
+  done
+
+  if [[ ${#all_services[@]} -gt 0 ]]; then
+    printf "%s\n" "${all_services[@]}" | sort -u
+  fi
+}
+
+# Unified execution function targeting the root docker-compose to satisfy network and dependency trees
+_manage_services() {
   local action="$1"
   shift
-  local ymls=("$@")
+  local services=("$@")
   local env_arg=()
-  local project_name
-  project_name="$(basename "${PROJECT_ROOT}")"
+
+  [[ ${#services[@]} -eq 0 ]] && return 0
+
+  if [[ ! -f "$ROOT_COMPOSE" ]]; then
+    log_error "Root compose file missing at ${ROOT_COMPOSE}. Cannot manage cross-dependencies."
+    exit 1
+  fi
 
   [[ -f "${PROJECT_ROOT}/.env" ]] && env_arg=("--env-file" "${PROJECT_ROOT}/.env")
 
-  for yml in "${ymls[@]}"; do
-    local stack_name="${yml#${PROJECT_ROOT}/}"
-    local yml_dir
-    yml_dir="$(dirname "$yml")"
-    local yml_file
-    yml_file="$(basename "$yml")"
+  (
+    cd "${PROJECT_ROOT}" || exit 1
+    if [[ "$action" == "stop" ]]; then
+      execute docker compose "${env_arg[@]:-}" -f "$ROOT_COMPOSE" stop "${services[@]}"
+    else
+      # The --no-deps flag prevents Docker Compose from automatically starting chained services
+      # (e.g., core routing) if they were deliberately taken offline.
+      execute docker compose "${env_arg[@]:-}" -f "$ROOT_COMPOSE" up -d --no-deps "${services[@]}"
+    fi
+  )
+}
 
-    (
-      cd "$yml_dir" || exit 1
-      if [[ "$action" == "stop" ]]; then
-        log_info "Stopping associated stack: ${stack_name}"
-        execute docker compose -p "$project_name" "${env_arg[@]:-}" -f "$yml_file" stop
-      else
-        log_info "Starting associated stack: ${stack_name}"
-        execute docker compose -p "$project_name" "${env_arg[@]:-}" -f "$yml_file" up -d
+stop_services() {
+  _manage_services "stop" "$@"
+  ACTIVE_STOPPED_SERVICES+=("$@")
+}
+
+start_services() {
+  _manage_services "start" "$@"
+
+  # Remove successfully started services from the active recovery tracking array
+  local remaining=()
+  for active in "${ACTIVE_STOPPED_SERVICES[@]}"; do
+    local started=false
+    for srv in "$@"; do
+      if [[ "$active" == "$srv" ]]; then
+        started=true
+        break
       fi
-    )
+    done
+    [[ "$started" == false ]] && remaining+=("$active")
   done
-}
 
-
-stop_scoped_stacks() {
-  _manage_stacks "stop" "$@"
-  ACTIVE_STOPPED_YMLS=("${@}")
-}
-
-start_scoped_stacks() {
-  _manage_stacks "start" "$@"
-  ACTIVE_STOPPED_YMLS=()
+  # Safely and completely empty the array if no services remain
+  if [[ ${#remaining[@]} -eq 0 ]]; then
+    ACTIVE_STOPPED_SERVICES=()
+  else
+    ACTIVE_STOPPED_SERVICES=("${remaining[@]}")
+  fi
 }
 
 # Retrieves current Git tag or short commit hash
@@ -282,8 +384,8 @@ do_backup() {
   fi
 
   local dest_file="${dest_dir}/${ARCHIVE_NAME}"
-  echo -e "\n========================================" >> "$LOG_FILE"
-  log_info "INITIATING BACKUP PROCESS"
+  log_empty
+  log_info "Initiating sequential per-module backup process..."
 
   # 1. Discover backup-eligible data directories
   local data_dirs
@@ -294,44 +396,89 @@ do_backup() {
     exit 0
   fi
 
-  # 2. Map data directories to unique service YML files
-  local target_ymls
-  _load_array target_ymls get_unique_ymls "${data_dirs[@]}"
+  # 2. Create temporary staging area for progressive file collection
+  if [[ "$DRY_RUN" == false ]]; then
+    if [[ "$STAGE_ON_TARGET" == true ]]; then
+      STAGE_DIR=$(mktemp -d "${dest_dir}/.backup_stage_XXXXXX")
+    else
+      STAGE_DIR=$(mktemp -d "${PROJECT_ROOT}/.backup_stage_XXXXXX")
+    fi
+  else
+    if [[ "$STAGE_ON_TARGET" == true ]]; then
+      STAGE_DIR="${dest_dir}/.backup_stage_DRYRUN"
+    else
+      STAGE_DIR="${PROJECT_ROOT}/.backup_stage_DRYRUN"
+    fi
+  fi
 
-  # 3. Stop running containers on target stacks
-  [[ ${#target_ymls[@]} -gt 0 ]] && stop_scoped_stacks "${target_ymls[@]}"
-
-  # 4. Prepare targets relative to project root
-  cd "${PROJECT_ROOT}" || exit 1
-  local targets=()
+  # 3. Iterate sequentially through data directories to minimize downtime per service
   for dir in "${data_dirs[@]}"; do
-    targets+=("${dir#${PROJECT_ROOT}/}")
+    local rel_dir="${dir#${PROJECT_ROOT}/}"
+    local target_yml
+    target_yml=$(get_yml_for_data_dir "$dir")
+
+    local module_services=()
+    if [[ -n "$target_yml" ]]; then
+      _load_array module_services get_services_from_yml "$target_yml"
+    fi
+
+    log_empty
+    log_info "Processing data directory: ${rel_dir}"
+
+    # Stop module services
+    if [[ ${#module_services[@]} -gt 0 ]]; then
+      log_info "Stopping scoped services: ${module_services[*]}..."
+      stop_services "${module_services[@]}"
+    fi
+
+    # Copy data payload into staging directory preserving relative structural paths
+    if [[ "$DRY_RUN" == false ]]; then
+      log_info "Staging data payload for ${rel_dir}..."
+      mkdir -p "${STAGE_DIR}/$(dirname "$rel_dir")"
+      execute_quiet cp --reflink=auto -a "${PROJECT_ROOT}/${rel_dir}" "${STAGE_DIR}/${rel_dir}"
+    else
+      log_info "[DRY-RUN] Would stage data payload for ${rel_dir}..."
+    fi
+
+    # Immediately restart module services
+    if [[ ${#module_services[@]} -gt 0 ]]; then
+      log_info "Restarting scoped services: ${module_services[*]}..."
+      start_services "${module_services[@]}"
+    fi
   done
-  [[ -f ".env" ]] && targets+=(".env")
+
+  log_empty
+
+  # 4. Append global environment metadata to staging
+  if [[ -f "${PROJECT_ROOT}/.env" ]]; then
+    log_info "Staging global .env file..."
+    execute_quiet cp -a "${PROJECT_ROOT}/.env" "${STAGE_DIR}/.env"
+  fi
 
   # 5. Embed Git tag metadata into backup payload
   local current_tag
   current_tag=$(get_current_git_tag)
-  log_info "Pinning backup to Git tag: $current_tag"
+  log_info "Pinning backup to Git tag: ${current_tag}"
 
   if [[ "$DRY_RUN" == false ]]; then
-    echo "$current_tag" > "$TAG_FILENAME"
+    echo "$current_tag" > "${STAGE_DIR}/${TAG_FILENAME}"
   else
-    log_info "[DRY-RUN] Would write Git tag '$current_tag' to $TAG_FILENAME"
+    log_info "[DRY-RUN] Would write Git tag '${current_tag}' to ${TAG_FILENAME}"
   fi
-  targets+=("$TAG_FILENAME")
 
-  # 6. Create compressed archive
-  log_info "Creating backup archive at: ${dest_file}"
+  # 6. Archive staged payload directly into final destination tarball
+  log_info "Creating compressed archive at: ${dest_file}..."
   if [[ "$DRY_RUN" == true ]]; then
-    log_info "[DRY-RUN] tar -czpvf ${dest_file} ${targets[*]}"
+    log_info "[DRY-RUN] tar -czpf ${dest_file} -C ${STAGE_DIR} ."
   else
-    tar -czpvf "${dest_file}" "${targets[@]}" 2>&1 | tee -a "$LOG_FILE"
-    rm -f "$TAG_FILENAME"
+    tar -czpf "${dest_file}" -C "${STAGE_DIR}" . 2>&1 | tee -a "$LOG_FILE"
   fi
 
-  # 7. Restart target stacks
-  [[ ${#target_ymls[@]} -gt 0 ]] && start_scoped_stacks "${target_ymls[@]}"
+  # 7. Clean up temporary staging directory upon successful creation
+  if [[ -n "${STAGE_DIR:-}" && -d "$STAGE_DIR" ]]; then
+    execute_quiet rm -rf "$STAGE_DIR"
+    STAGE_DIR=""
+  fi
 
   log_success "Backup completed successfully: ${dest_file}"
 }
@@ -342,12 +489,12 @@ do_backup() {
 
 wipe_current_state() {
   local dirs=("$@")
-  log_info "Wiping ALL existing data directories to achieve a clean slate..."
+  log_info "Wiping all existing data directories to achieve a clean slate..."
   cd "${PROJECT_ROOT}" || exit 1
 
   for dir in "${dirs[@]}"; do
     if [[ -d "$dir" ]]; then
-      log_info "Deleting folder: ${dir#${PROJECT_ROOT}/}"
+      log_info "Deleting folder: ${dir#${PROJECT_ROOT}/}..."
       execute_quiet rm -rf "$dir"
     fi
   done
@@ -368,7 +515,7 @@ verify_git_tag() {
 
   # Direct file extraction prevents SIGPIPE failures under set -o pipefail
   local backup_tag
-  backup_tag=$(tar -xzf "$archive_file" -O "$TAG_FILENAME" 2>/dev/null || echo "missing_in_archive")
+  backup_tag=$(tar -xzpf "$archive_file" -O "$TAG_FILENAME" 2>/dev/null || echo "missing_in_archive")
   [[ -z "$backup_tag" ]] && backup_tag="missing_in_archive"
 
   if [[ "$backup_tag" != "$current_tag" ]]; then
@@ -388,21 +535,21 @@ do_restore() {
   # Require explicit user opt-in before data destruction
   confirm_action "\e[31m[CRITICAL WARNING]\e[0m This will COMPLETELY DELETE all current data directories and replace them with the backup."
 
-  echo -e "\n========================================" >> "$LOG_FILE"
-  log_info "INITIATING RESTORE PROCESS"
+  log_empty
+  log_info "Initiating restore process..."
 
   verify_git_tag "$archive_file"
 
-  # 1. Discover ALL existing data directories to ensure complete shutdown & wipe
-  local wipe_data_dirs wipe_ymls=()
+  # 1. Discover ALL existing data directories to aggregate services that must be shut down
+  local wipe_data_dirs all_services=()
   _load_array wipe_data_dirs get_all_data_dirs
 
   if [[ ${#wipe_data_dirs[@]} -gt 0 ]]; then
-    _load_array wipe_ymls get_unique_ymls "${wipe_data_dirs[@]}"
+    _load_array all_services get_services_for_data_dirs "${wipe_data_dirs[@]}"
   fi
 
-  # 2. Stop running stacks on all existing data directories
-  [[ ${#wipe_ymls[@]} -gt 0 ]] && stop_scoped_stacks "${wipe_ymls[@]}"
+  # 2. Stop all running stacks associated with existing data directories
+  [[ ${#all_services[@]} -gt 0 ]] && stop_services "${all_services[@]}"
 
   # Flag active: Any failure past this point requires manual intervention
   DESTRUCTIVE_PHASE=true
@@ -411,30 +558,31 @@ do_restore() {
   [[ ${#wipe_data_dirs[@]} -gt 0 ]] && wipe_current_state "${wipe_data_dirs[@]}"
 
   # 4. Extract archive
-  log_info "Extracting backup from: ${archive_file}"
+  log_info "Extracting backup from: ${archive_file}..."
   cd "${PROJECT_ROOT}" || exit 1
   if [[ "$DRY_RUN" == true ]]; then
-    log_info "[DRY-RUN] tar -xzpvf ${archive_file}"
+    log_info "[DRY-RUN] tar -xzpf ${archive_file}"
   else
-    tar -xzpvf "${archive_file}" 2>&1 | tee -a "$LOG_FILE"
-
-    restore_stashed_env
-    execute_quiet rm -f "${PROJECT_ROOT}/.env.bak"
+    tar -xzpf "${archive_file}" 2>&1 | tee -a "$LOG_FILE"
   fi
 
-  # 5. Discover post-restore target stacks
-  local post_data_dirs post_ymls=()
-  _load_array post_data_dirs get_backup_data_dirs
-
-  if [[ ${#post_data_dirs[@]} -gt 0 ]]; then
-    _load_array post_ymls get_unique_ymls "${post_data_dirs[@]}"
-  fi
+  # 5. Clean up extraction artifacts and finalize .env state
+  execute_quiet rm -f "${PROJECT_ROOT}/${TAG_FILENAME}"
+  restore_stashed_env
+  execute_quiet rm -f "${PROJECT_ROOT}/.env.bak"
 
   # Extraction successful. Destructive phase over.
   DESTRUCTIVE_PHASE=false
 
-  # 6. Bring restored stacks back online
-  [[ ${#post_ymls[@]} -gt 0 ]] && start_scoped_stacks "${post_ymls[@]}"
+  # 6. Discover post-restore target stacks and bring them back online
+  local post_data_dirs post_services=()
+  _load_array post_data_dirs get_backup_data_dirs
+
+  if [[ ${#post_data_dirs[@]} -gt 0 ]]; then
+    _load_array post_services get_services_for_data_dirs "${post_data_dirs[@]}"
+  fi
+
+  [[ ${#post_services[@]} -gt 0 ]] && start_services "${post_services[@]}"
 
   log_success "Restore completed successfully."
 }
@@ -445,21 +593,26 @@ do_restore() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    -h|--help)
+      show_help
+      ;;
     --dry-run)
       DRY_RUN=true
       shift
       ;;
+    --stage-on-target)
+      STAGE_ON_TARGET=true
+      shift
+      ;;
     backup|restore)
       if [[ -n "$COMMAND" ]]; then
-        log_error "Multiple commands specified: '$COMMAND' and '$1'"
-        show_usage
+        usage_error "Multiple commands specified: '$COMMAND' and '$1'"
       fi
       COMMAND="$1"
       TARGET_PATH="${2:-}"
 
       if [[ -z "$TARGET_PATH" || "$TARGET_PATH" == --* ]]; then
-        log_error "Target path is required for $COMMAND"
-        show_usage
+        usage_error "Target path is required for $COMMAND"
       fi
 
       # Resolve target path to an absolute path before working directory changes
@@ -467,21 +620,23 @@ while [[ $# -gt 0 ]]; do
         TARGET_PATH="$(pwd)/$TARGET_PATH"
       fi
 
+      # Strip trailing slashes to prevent double-slash formatting artifacts in paths
+      TARGET_PATH="${TARGET_PATH%/}"
+
       shift 2
       ;;
     *)
-      log_error "Unknown argument: $1"
-      show_usage
+      usage_error "Unknown argument: $1"
       ;;
   esac
 done
 
-[[ -z "$COMMAND" ]] && show_usage
+[[ -z "$COMMAND" ]] && usage_error "No command specified."
 
 check_root
 
 if [[ "$DRY_RUN" == true ]]; then
-  log_warn "RUNNING IN DRY-RUN MODE. NO CHANGES WILL BE MADE."
+  log_warn "Running in DRY-RUN mode. No changes will be made."
 fi
 
 case "$COMMAND" in
