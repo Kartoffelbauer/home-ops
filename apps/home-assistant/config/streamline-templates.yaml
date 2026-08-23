@@ -32,13 +32,15 @@ washdata_appliance:
       {% set ACTIVE_STATES = ['starting', 'running', 'rinse', 'paused', 'user_paused', 'ending'] %}
       {% set prg_text = program if program and program | lower not in ['unknown', 'auto_detect', 'detecting...', 'none', 'unavailable'] else 'Detecting...' %}
 
-      <div style="position: relative; width: 100%;">
-        <span>[[name]]</span>
-        {% if status in ACTIVE_STATES %}
-          <span style="position: absolute; right: 0; font-size: 0.85em; color: var(--secondary-text-color); font-weight: normal;">
+      <div style="display: block; width: 98%;">
+        <span style="display: inline-block; width: 50%; text-align: left;">
+          [[name]]
+        </span>
+        <span style="display: inline-block; width: 50%; text-align: right; font-size: 0.85em; font-weight: normal; color: var(--secondary-text-color);">
+          {% if status in ACTIVE_STATES %}
             {{ prg_text }} · {{ power }} W
-          </span>
-        {% endif %}
+          {% endif %}
+        </span>
       </div>
     secondary: >-
       {# Retrieve state, progress, and runtime info from specific sensors #}
