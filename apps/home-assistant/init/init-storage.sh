@@ -24,8 +24,8 @@ FILE_HTTP_CONFIG="${DIR_STORAGE}/http"
 
 # Environment Variables
 MQTT_PASS="${ZIGBEE_MOSQUITTO_PASSWORD_HA:-}"
-HTTP_SERVER_PORT="${HOMEASSISTANT_HTTP_SERVER_PORT:-8123}"
-HTTP_TRUSTED_PROXIES="${HOMEASSISTANT_HTTP_TRUSTED_PROXIES:-127.0.0.1/32,172.16.0.0/12,::1/128,fd00:172:29::/64}"
+HTTP_SERVER_PORT="${HOMEASSISTANT_HTTP_SERVER_PORT:-}"
+HTTP_TRUSTED_PROXIES="${HOMEASSISTANT_HTTP_TRUSTED_PROXIES:-}"
 
 # Ensure runtime dependencies are met
 if ! command -v jq >/dev/null 2>&1; then
@@ -144,6 +144,18 @@ provision_http_config() {
   local staging_file="${TEMP_WORKSPACE}/http.tmp"
   local existing_port
   local existing_proxies
+
+  # Validation guard for HTTP server port
+  if [ -z "$HTTP_SERVER_PORT" ]; then
+    echo "[ERROR] HOMEASSISTANT_HTTP_SERVER_PORT is missing in the environment. Cannot provision HTTP." >&2
+    exit 1
+  fi
+
+  # Validation guard for trusted proxies
+  if [ -z "$HTTP_TRUSTED_PROXIES" ]; then
+    echo "[ERROR] HOMEASSISTANT_HTTP_TRUSTED_PROXIES is missing in the environment. Cannot provision HTTP." >&2
+    exit 1
+  fi
 
   # Format the comma-separated environment variable into a valid JSON array
   local proxies_json
