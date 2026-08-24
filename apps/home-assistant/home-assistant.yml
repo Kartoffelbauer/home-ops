@@ -20,31 +20,33 @@ services:
       - ./data/config:/data-config
       - ./data/media:/data-media
 
-  # --- Storage Init Service: Pre-provisions MQTT Broker storage entries ---
-  home-assistant-mqtt-init:
+  # --- Storage Init Service: Provisions internal storage entries (HTTP & MQTT) ---
+  home-assistant-storage-init:
     extends:
       file: ../../shared/templates.yml
       service: base-init-extended
-    container_name: home-assistant-mqtt-init
+    container_name: home-assistant-storage-init
 
-    # Lifecycle: Runs after base structure exists, before downloading external extensions
+    # Lifecycle: Runs after directory baseline exists, before network extensions are fetched
     depends_on:
       home-assistant-init:
         condition: service_completed_successfully
 
-    # Execution: Run dedicated MQTT provisioner
+    # Execution: Run modular storage provisioners sequentially
     entrypoint:
       - /bin/sh
       - /init.sh
 
-    # Configuration: Pass only required broker environment variables
+    # Configuration: Pass HTTP proxy/port settings and broker credentials
     environment:
+      HOMEASSISTANT_HTTP_SERVER_PORT: "${HOMEASSISTANT_HTTP_SERVER_PORT:-8123}"
+      HOMEASSISTANT_HTTP_TRUSTED_PROXIES: "${HOMEASSISTANT_HTTP_TRUSTED_PROXIES:-127.0.0.1/32,172.16.0.0/12,::1/128,fd00:172:29::/64}"
       ZIGBEE_MOSQUITTO_PASSWORD_HA: "${ZIGBEE_MOSQUITTO_PASSWORD_HA:-}"
 
     # State: Mount data config volume and init script
     volumes:
       - ./data/config:/config
-      - ./init/init-mqtt.sh:/init.sh:ro
+      - ./init/init-storage.sh:/init.sh:ro
 
   # --- Ext Init Service: Downloads Home Assistant custom components ---
   home-assistant-ext-init:
@@ -55,7 +57,7 @@ services:
 
     # Lifecycle: Wait for required services to be ready before running
     depends_on:
-      home-assistant-mqtt-init:
+      home-assistant-storage-init:
         condition: service_completed_successfully
       pihole:
         condition: service_healthy
