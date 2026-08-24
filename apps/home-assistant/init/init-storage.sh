@@ -4,7 +4,7 @@
 # Environment: Alpine (POSIX sh)
 # Description: Declarative, idempotent provisioner for Home Assistant internal
 #              storage (.storage) configurations. Ensures required settings
-#              (MQTT broker credentials, HTTP server config, etc.) are present
+#              (HTTP server config, MQTT broker credentials, etc.) are present
 #              and correct on every boot. Uses atomic file transactions to
 #              prevent state corruption. Modular design allows easy extension.
 # ==============================================================================
@@ -19,13 +19,13 @@ set -euo pipefail
 DIR_STORAGE="/config/.storage"
 
 # Storage Files
-FILE_CONFIG_ENTRIES="${DIR_STORAGE}/core.config_entries"
 FILE_HTTP_CONFIG="${DIR_STORAGE}/http"
+FILE_CONFIG_ENTRIES="${DIR_STORAGE}/core.config_entries"
 
 # Environment Variables
-MQTT_PASS="${ZIGBEE_MOSQUITTO_PASSWORD_HA:-}"
 HTTP_SERVER_PORT="${HOMEASSISTANT_HTTP_SERVER_PORT:-}"
 HTTP_TRUSTED_PROXIES="${HOMEASSISTANT_HTTP_TRUSTED_PROXIES:-}"
+MQTT_PASS="${ZIGBEE_MOSQUITTO_PASSWORD_HA:-}"
 
 # Ensure runtime dependencies are met
 if ! command -v jq >/dev/null 2>&1; then
@@ -43,16 +43,16 @@ mkdir -p "$DIR_STORAGE"
 # --- Baseline Initializations ---
 # Validate or reset baseline configurations if missing or corrupted
 
-# Baseline: core.config_entries (MQTT, Integrations)
-if [ ! -f "$FILE_CONFIG_ENTRIES" ] || ! jq . "$FILE_CONFIG_ENTRIES" >/dev/null 2>&1; then
-  echo "[SETUP] 'core.config_entries' is missing or invalid. Initializing baseline..." >&2
-  echo '{"version": 1, "minor_version": 5, "key": "core.config_entries", "data": {"entries": []}}' > "$FILE_CONFIG_ENTRIES"
-fi
-
 # Baseline: http (Reverse Proxy, Port)
 if [ ! -f "$FILE_HTTP_CONFIG" ] || ! jq . "$FILE_HTTP_CONFIG" >/dev/null 2>&1; then
   echo "[SETUP] 'http' configuration is missing or invalid. Initializing baseline..." >&2
   echo '{"version": 2, "minor_version": 2, "key": "http", "data": {"stable": null, "pending": null, "yaml_migration_done": true}}' > "$FILE_HTTP_CONFIG"
+fi
+
+# Baseline: core.config_entries (MQTT, Integrations)
+if [ ! -f "$FILE_CONFIG_ENTRIES" ] || ! jq . "$FILE_CONFIG_ENTRIES" >/dev/null 2>&1; then
+  echo "[SETUP] 'core.config_entries' is missing or invalid. Initializing baseline..." >&2
+  echo '{"version": 1, "minor_version": 5, "key": "core.config_entries", "data": {"entries": []}}' > "$FILE_CONFIG_ENTRIES"
 fi
 
 # ------------------------------------------------------------------------------
@@ -62,81 +62,6 @@ fi
 generate_entry_id() {
   # Generates a 26-character Crockford Base32 compliant ULID string
   tr -dc '0-9A-GHJKMNP-TV-Z' < /dev/urandom | fold -w 26 | head -n 1
-}
-
-# --- Module: MQTT Broker ---
-provision_mqtt_broker() {
-  local staging_file="${TEMP_WORKSPACE}/core.config_entries.tmp"
-  local domain_exists
-  local existing_pass
-
-  # Validation guard
-  if [ -z "$MQTT_PASS" ]; then
-    echo "[ERROR] ZIGBEE_MOSQUITTO_PASSWORD_HA is missing in the environment. Cannot provision MQTT." >&2
-    exit 1
-  fi
-
-  # Extract existing state (if any)
-  domain_exists=$(jq -r 'first(.data.entries[] | select(.domain == "mqtt") | .domain) // empty' "$FILE_CONFIG_ENTRIES")
-  existing_pass=$(jq -r 'first(.data.entries[] | select(.domain == "mqtt") | .data.password) // empty' "$FILE_CONFIG_ENTRIES")
-
-  # State Reconciliation
-  if [ "$domain_exists" = "mqtt" ]; then
-    if [ "$existing_pass" = "$MQTT_PASS" ]; then
-      echo "[SKIP] MQTT domain is already configured and password matches. No changes needed." >&2
-      return 0
-    else
-      echo "[ACTION] Password change detected. Updating existing MQTT Broker credentials..." >&2
-      # Update the password and modified_at timestamp on the existing entry
-      jq \
-        --arg pass "$MQTT_PASS" \
-        '.data.entries |= map(
-          if .domain == "mqtt" then
-            .data.password = $pass |
-            .modified_at = (now | strftime("%Y-%m-%dT%H:%M:%S.000000+00:00"))
-          else
-            .
-          end
-        )' "$FILE_CONFIG_ENTRIES" > "$staging_file"
-    fi
-  else
-    echo "[ACTION] Injecting MQTT Broker configuration (localhost:1883)..." >&2
-    local entry_id
-    entry_id=$(generate_entry_id)
-
-    # Perform atomic injection for a completely new entry
-    jq \
-      --arg pass "$MQTT_PASS" \
-      --arg id "$entry_id" \
-      '.data.entries += [{
-        "created_at": (now | strftime("%Y-%m-%dT%H:%M:%S.000000+00:00")),
-        "data": {
-          "broker": "localhost",
-          "password": $pass,
-          "port": 1883,
-          "protocol": "5",
-          "username": "homeassistant"
-        },
-        "disabled_by": null,
-        "discovery_keys": {},
-        "domain": "mqtt",
-        "entry_id": $id,
-        "minor_version": 1,
-        "modified_at": (now | strftime("%Y-%m-%dT%H:%M:%S.000000+00:00")),
-        "options": {},
-        "pref_disable_new_entities": false,
-        "pref_disable_polling": false,
-        "source": "user",
-        "subentries": [],
-        "title": "localhost",
-        "unique_id": null,
-        "version": 2
-      }]' "$FILE_CONFIG_ENTRIES" > "$staging_file"
-  fi
-
-  # Commit transaction to production file atomically
-  mv "$staging_file" "$FILE_CONFIG_ENTRIES"
-  echo "[SUCCESS] MQTT Broker configured successfully." >&2
 }
 
 # --- Module: HTTP Configuration ---
@@ -214,6 +139,82 @@ provision_http_config() {
   echo "[SUCCESS] HTTP configuration provisioned successfully." >&2
 }
 
+# --- Module: MQTT Broker ---
+provision_mqtt_broker() {
+  local staging_file="${TEMP_WORKSPACE}/core.config_entries.tmp"
+  local domain_exists
+  local existing_pass
+
+  # Validation guard
+  if [ -z "$MQTT_PASS" ]; then
+    echo "[ERROR] ZIGBEE_MOSQUITTO_PASSWORD_HA is missing in the environment. Cannot provision MQTT." >&2
+    exit 1
+  fi
+
+  # Extract existing state (if any)
+  domain_exists=$(jq -r 'first(.data.entries[] | select(.domain == "mqtt") | .domain) // empty' "$FILE_CONFIG_ENTRIES")
+  existing_pass=$(jq -r 'first(.data.entries[] | select(.domain == "mqtt") | .data.password) // empty' "$FILE_CONFIG_ENTRIES")
+
+  # State Reconciliation
+  if [ "$domain_exists" = "mqtt" ]; then
+    if [ "$existing_pass" = "$MQTT_PASS" ]; then
+      echo "[SKIP] MQTT domain is already configured and password matches. No changes needed." >&2
+      return 0
+    else
+      echo "[ACTION] Password change detected. Updating existing MQTT Broker credentials..." >&2
+      # Update the password and modified_at timestamp on the existing entry
+      jq \
+        --arg pass "$MQTT_PASS" \
+        '.data.entries |= map(
+          if .domain == "mqtt" then
+            .data.password = $pass |
+            .modified_at = (now | strftime("%Y-%m-%dT%H:%M:%S.000000+00:00"))
+          else
+            .
+          end
+        )' "$FILE_CONFIG_ENTRIES" > "$staging_file"
+    fi
+  else
+    echo "[ACTION] Injecting MQTT Broker configuration (localhost:1883)..." >&2
+    local entry_id
+    entry_id=$(generate_entry_id)
+
+    # Perform atomic injection for a completely new entry
+    jq \
+      --arg pass "$MQTT_PASS" \
+      --arg id "$entry_id" \
+      '.data.entries += [{
+        "created_at": (now | strftime("%Y-%m-%dT%H:%M:%S.000000+00:00")),
+        "data": {
+          "broker": "localhost",
+          "password": $pass,
+          "port": 1883,
+          "protocol": "5",
+          "username": "homeassistant"
+        },
+        "disabled_by": null,
+        "discovery_keys": {},
+        "domain": "mqtt",
+        "entry_id": $id,
+        "minor_version": 1,
+        "modified_at": (now | strftime("%Y-%m-%dT%H:%M:%S.000000+00:00")),
+        "options": {},
+        "pref_disable_new_entities": false,
+        "pref_disable_polling": false,
+        "source": "user",
+        "subentries": [],
+        "title": "localhost",
+        "unique_id": null,
+        "version": 2
+      }]' "$FILE_CONFIG_ENTRIES" > "$staging_file"
+  fi
+
+  # Commit transaction to production file atomically
+  mv "$staging_file" "$FILE_CONFIG_ENTRIES"
+  echo "[SUCCESS] MQTT Broker configured successfully." >&2
+}
+
+
 # ==============================================================================
 # 3. Main Execution
 # ==============================================================================
@@ -221,8 +222,8 @@ provision_http_config() {
 echo "[INFO] Starting Home Assistant storage provisioning sequence..." >&2
 
 # Execute modular provisioners
-provision_mqtt_broker
 provision_http_config
+provision_mqtt_broker
 
 echo "[SETUP] Applying file ownership (PUID: 0 / PGID: 0) for Home Assistant..." >&2
 chown -R 0:0 "$DIR_STORAGE"
