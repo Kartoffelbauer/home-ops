@@ -33,7 +33,7 @@ services:
     extends:
       file: ../../shared/templates.yml
       service: base-secure
-    image: eclipse-mosquitto:${ZIGBEE_MOSQUITTO_DOCKER_TAG:-2.0}
+    image: eclipse-mosquitto:${ZIGBEE_MOSQUITTO_DOCKER_TAG:-2}
     container_name: zigbee-mosquitto
 
     # Security: Run as non-root user with readonly container filesystem
