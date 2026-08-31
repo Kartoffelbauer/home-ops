@@ -90,7 +90,7 @@ services:
       - "frontend=piitaya/lovelace-mushroom:${HOMEASSISTANT_EXT_LOVELACE_MUSHROOM_DOCKER_TAG:-latest}"
 
       # Theme extensions
-      - "theme=Clooos/Bubble:${HOMEASSISTANT_EXT_BUBBLE_DOCKER_TAG:-latest}"
+      - "theme=piitaya/lovelace-mushroom-themes:${HOMEASSISTANT_EXT_LOVELACE_MUSHROOM_THEMES_DOCKER_TAG:-latest}"
 
     # State: Mount the config volume and script
     volumes:
