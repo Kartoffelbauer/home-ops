@@ -75,6 +75,7 @@ services:
     command:
       # Integration extensions
       - "integration=3dg1luk43/ha_washdata:${HOMEASSISTANT_EXT_HA_WASHDATA_DOCKER_TAG:-latest}"
+      - "integration=Clooos/Bubble-Card-Tools:${HOMEASSISTANT_EXT_BUBBLE_CARD_TOOLS_UI_DOCKER_TAG:-latest}"
       - "integration=DAB-LABS/HAIR:${HOMEASSISTANT_EXT_HAIR_DOCKER_TAG:-latest}"
       - "integration=edmogeor/hass-ga-manual-ui:${HOMEASSISTANT_EXT_HASS_GA_MANUAL_UI_DOCKER_TAG:-latest}"
       # - "integration=frenck/spook:${HOMEASSISTANT_EXT_SPOOK_DOCKER_TAG:-latest}" # Used for cleaning up old entities, but not needed for normal operation
