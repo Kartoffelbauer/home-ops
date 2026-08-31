@@ -84,6 +84,8 @@ services:
       - "frontend=Clooos/Bubble-Card:${HOMEASSISTANT_EXT_BUBBLE_CARD_DOCKER_TAG:-latest}"
       - "frontend=custom-cards/button-card:${HOMEASSISTANT_EXT_BUTTON_CARD_DOCKER_TAG:-latest}"
       - "frontend=francois-le-ko4la/lovelace-entity-progress-card:${HOMEASSISTANT_EXT_LOVELACE_ENTITY_PROGRESS_CARD_DOCKER_TAG:-latest}"
+      - "frontend=Nerwyn/custom-card-features:${HOMEASSISTANT_EXT_CUSTOM_CARD_FEATURES_DOCKER_TAG:-latest}"
+      - "frontend=ofekashery/vertical-stack-in-card:${HOMEASSISTANT_EXT_VERTICAL_STACK_IN_CARD_DOCKER_TAG:-latest}"
       - "frontend=piitaya/lovelace-mushroom:${HOMEASSISTANT_EXT_LOVELACE_MUSHROOM_DOCKER_TAG:-latest}"
 
       # Theme extensions
