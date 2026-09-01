@@ -81,6 +81,7 @@ services:
       # - "integration=frenck/spook:${HOMEASSISTANT_EXT_SPOOK_DOCKER_TAG:-latest}" # Used for cleaning up old entities, but not needed for normal operation
 
       # Frontend extensions
+      - "frontend=benct/lovelace-multiple-entity-row:${HOMEASSISTANT_EXT_LOVELACE_MULTIPLE_ENTITY_ROW_DOCKER_TAG:-latest}"
       - "frontend=brunosabot/streamline-card:${HOMEASSISTANT_EXT_STREAMLINE_CARD_DOCKER_TAG:-latest}"
       - "frontend=Clooos/Bubble-Card:${HOMEASSISTANT_EXT_BUBBLE_CARD_DOCKER_TAG:-latest}"
       - "frontend=custom-cards/button-card:${HOMEASSISTANT_EXT_BUTTON_CARD_DOCKER_TAG:-latest}"
