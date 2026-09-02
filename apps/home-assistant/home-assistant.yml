@@ -75,14 +75,13 @@ services:
     command:
       # Integration extensions
       - "integration=3dg1luk43/ha_washdata:${HOMEASSISTANT_EXT_HA_WASHDATA_DOCKER_TAG:-latest}"
-      - "integration=Clooos/Bubble-Card-Tools:${HOMEASSISTANT_EXT_BUBBLE_CARD_TOOLS_UI_DOCKER_TAG:-latest}"
       - "integration=DAB-LABS/HAIR:${HOMEASSISTANT_EXT_HAIR_DOCKER_TAG:-latest}"
       - "integration=edmogeor/hass-ga-manual-ui:${HOMEASSISTANT_EXT_HASS_GA_MANUAL_UI_DOCKER_TAG:-latest}"
+      - "integration=thomasloven/hass-browser_mod:${HOMEASSISTANT_EXT_HASS_BROWSER_MOD_DOCKER_TAG:-latest}"
       # - "integration=frenck/spook:${HOMEASSISTANT_EXT_SPOOK_DOCKER_TAG:-latest}" # Used for cleaning up old entities, but not needed for normal operation
 
       # Frontend extensions
       - "frontend=brunosabot/streamline-card:${HOMEASSISTANT_EXT_STREAMLINE_CARD_DOCKER_TAG:-latest}"
-      - "frontend=Clooos/Bubble-Card:${HOMEASSISTANT_EXT_BUBBLE_CARD_DOCKER_TAG:-latest}"
       - "frontend=francois-le-ko4la/lovelace-entity-progress-card:${HOMEASSISTANT_EXT_LOVELACE_ENTITY_PROGRESS_CARD_DOCKER_TAG:-latest}"
       - "frontend=Nerwyn/custom-card-features:${HOMEASSISTANT_EXT_CUSTOM_CARD_FEATURES_DOCKER_TAG:-latest}"
       - "frontend=piitaya/lovelace-mushroom:${HOMEASSISTANT_EXT_LOVELACE_MUSHROOM_DOCKER_TAG:-latest}"
