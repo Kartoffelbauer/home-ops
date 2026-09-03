@@ -99,7 +99,7 @@ services:
     extends:
       file: ../../shared/templates.yml
       service: base-secure-outbound
-    image: ghcr.io/home-assistant/home-assistant:${HOMEASSISTANT_DOCKER_TAG:-2026.8}
+    image: ghcr.io/home-assistant/home-assistant:${HOMEASSISTANT_DOCKER_TAG:-2026.9}
     container_name: home-assistant
 
     # Connectivity: Use host network mode for device discovery (mDNS)
