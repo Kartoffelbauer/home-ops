@@ -3,7 +3,7 @@ services:
   zigbee-init:
     extends:
       file: ../../shared/templates.yml
-      service: base-init-extended
+      service: base-init-outbound-alpine
     container_name: zigbee-init
 
     # Environment variables pulled from root .env or Compose defaults

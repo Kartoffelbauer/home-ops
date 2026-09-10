@@ -37,7 +37,7 @@ x-outbound-dependencies: &outbound-dependencies
 
 
 services:
-  # --- Basic Init Service: Templates for preparing permissions ---
+  # --- Basic Init Service: Offline permissions and disk preparation ---
   base-init:
     <<: *init-common
     image: busybox:${BUSYBOX_DOCKER_TAG:-1.37}
@@ -48,8 +48,16 @@ services:
     # Security: Lock the filesystem
     read_only: true
 
-  # --- Extended Init Service: Template for more complex initialization needs ---
-  base-init-extended:
+  # --- Outbound Init Service: Bare template with Pi-hole and network access ---
+  base-init-outbound:
+    <<: [ *init-common, *outbound-dependencies ]
+
+    # Connectivity: Allow outbound network access
+    networks:
+      - outbound-public
+
+  # --- Alpine Outbound Init Service: Standard shell & package management environment ---
+  base-init-outbound-alpine:
     <<: [ *init-common, *outbound-dependencies ]
     image: alpine:${ALPINE_DOCKER_TAG:-3.23}
 

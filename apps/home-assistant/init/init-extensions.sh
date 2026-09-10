@@ -1,12 +1,13 @@
 #!/bin/sh
 # ==============================================================================
 # Script: init-extensions.sh
-# Environment: Alpine (POSIX sh)
+# Environment: Home Assistant Base (Debian / POSIX sh)
 # Description: Declarative, idempotent installer for Home Assistant integrations,
-#              frontend UI plugins, and themes. Utilizes a Manifest Cache pattern
-#              to bypass heavy downloads if up-to-date. Rebuilds the internal
-#              .storage/lovelace_resources database dynamically on every boot
-#              using an atomic transaction pattern to prevent empty states.
+#              frontend UI plugins, themes, and compiled Python dependencies.
+#              Utilizes a Manifest Cache pattern to bypass downloads if up-to-date,
+#              rebuilds .storage/lovelace_resources atomically on every boot,
+#              and isolates wheel compilation into a dedicated user-site directory
+#              to fully support read-only container deployments.
 # ==============================================================================
 
 # Exit on error (-e), treat unset variables as an error (-u), and fail pipes (-o pipefail)
@@ -20,13 +21,15 @@ DIR_INTEGRATIONS="/config/custom_components"
 DIR_FRONTEND="/config/www/community"
 DIR_THEMES="/config/themes"
 DIR_STORAGE="/config/.storage"
+DIR_DEPS="/config/deps"
 FILE_RESOURCES="${DIR_STORAGE}/lovelace_resources"
 MANIFEST_FILE="/config/.ha_extension_manifest.json"
 
-# Ensure runtime dependencies are met
-if ! command -v jq >/dev/null 2>&1; then
-  echo "[INIT] Installing required dependencies: jq, unzip, wget..." >&2
-  apk add --no-cache -q jq unzip wget
+# Ensure runtime dependencies are met (Adapted for Debian/HA Image)
+if ! command -v jq >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1; then
+  echo "[INIT] Installing required system dependencies: jq, unzip, wget..." >&2
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update -qq && apt-get install -yqq jq unzip wget >/dev/null 2>&1
 fi
 
 # Setup automatic cleanup of temporary workspace directories on exit or failure
@@ -34,7 +37,7 @@ TEMP_WORKSPACE=$(mktemp -d)
 trap 'rm -rf "$TEMP_WORKSPACE"' EXIT
 
 # Create required directory structure
-mkdir -p "$DIR_INTEGRATIONS" "$DIR_FRONTEND" "$DIR_THEMES" "$DIR_STORAGE"
+mkdir -p "$DIR_INTEGRATIONS" "$DIR_FRONTEND" "$DIR_THEMES" "$DIR_STORAGE" "$DIR_DEPS"
 
 # Validate or reset corrupted Manifest Cache
 if [ ! -f "$MANIFEST_FILE" ] || ! jq . "$MANIFEST_FILE" >/dev/null 2>&1; then
@@ -312,15 +315,16 @@ VALID_REPOS=":"
 
 for arg in "$@"; do
   TYPE="integration"
-  REPO_VERSION="$arg"
+  RAW_ENTRY="$arg"
 
   if echo "$arg" | grep -q "="; then
     TYPE="${arg%%=*}"
-    REPO_VERSION="${arg#*=}"
+    RAW_ENTRY="${arg#*=}"
   fi
 
-  REPO="${REPO_VERSION%%:*}"
-  TARGET_VERSION="${REPO_VERSION##*:}"
+  REPO="${RAW_ENTRY%%:*}"
+  TARGET_VERSION="${RAW_ENTRY#*:}"
+  [ "$REPO" = "$TARGET_VERSION" ] && TARGET_VERSION="latest"
   APP_NAME="${REPO##*/}"
   VALID_REPOS="${VALID_REPOS}${REPO}:"
 
@@ -411,12 +415,64 @@ for repo in $TRACKED_REPOS; do
   fi
 done
 
-# Overwrite the real Lovelace resource file atomically
-# Only executed if all download routines and queries exited with zero status codes
+# ==============================================================================
+# 7. Python Dependency Compilation (DRY)
+# ==============================================================================
+
+echo "[DEPENDENCIES] Scanning all active integrations for Python requirements..." >&2
+
+REQ_FILE="${TEMP_WORKSPACE}/requirements.txt"
+touch "$REQ_FILE"
+
+# Extract requirements arrays from all installed integration manifests
+for manifest in "${DIR_INTEGRATIONS}"/*/manifest.json; do
+  if [ -f "$manifest" ]; then
+    jq -r '.requirements[]?' "$manifest" 2>/dev/null >> "$REQ_FILE" || true
+  fi
+done
+
+# Only proceed with the installation pipeline if at least one requirement was found
+if [ -s "$REQ_FILE" ]; then
+  # Deduplicate the requirements list to handle shared dependencies across
+  # multiple integrations seamlessly without throwing installation conflicts.
+  DEDUP_FILE="${TEMP_WORKSPACE}/requirements.dedup.txt"
+  sort -u "$REQ_FILE" > "$DEDUP_FILE"
+
+  echo "[DEPENDENCIES] Resolving and installing Python packages: $(cat "$DEDUP_FILE" | tr '\n' ' ')" >&2
+
+  # Resolve dynamic site-packages target for the current Python runtime
+  TARGET_PATH=$(PYTHONUSERBASE="$DIR_DEPS" python3 -m site --user-site)
+
+  # Purge previous dependency tree to prevent orphan bloat and version conflicts
+  echo "[DEPENDENCIES] Purging old dependency cache for a clean state..." >&2
+  rm -rf "${DIR_DEPS}/lib" "${DIR_DEPS}/bin"
+  mkdir -p "$TARGET_PATH"
+
+  # Install requirements via uv with pip fallback
+  if command -v uv >/dev/null 2>&1; then
+    uv pip install -r "$DEDUP_FILE" --target "$TARGET_PATH"
+  else
+    python3 -m pip install -r "$DEDUP_FILE" --target "$TARGET_PATH"
+  fi
+
+  echo "[SUCCESS] Python dependencies provisioned at ${TARGET_PATH}" >&2
+else
+  # If no requirements are needed anymore, ensure the dependency folder is wiped to reclaim storage space.
+  echo "[DEPENDENCIES] No Python requirements found. Cleaning up old deps..." >&2
+  rm -rf "${DIR_DEPS}/lib" "${DIR_DEPS}/bin"
+fi
+
+
+# ==============================================================================
+# 8. Declarative Finalization & Permissions
+# ==============================================================================
+
+# Overwrite Lovelace resource database atomically from staging
 echo "[COMMIT] Committing staging Lovelace database transaction to production..." >&2
 mv "$FILE_RESOURCES_STAGING" "$FILE_RESOURCES"
 
+# Enforce root ownership across all persistent configuration trees
 echo "[PERMISSIONS] Applying (PUID: 0 / PGID: 0) to ensure Home Assistant access..." >&2
-chown -R 0:0 "$DIR_INTEGRATIONS" "$DIR_FRONTEND" "$DIR_THEMES" "$DIR_STORAGE"
+chown -R 0:0 "$DIR_INTEGRATIONS" "$DIR_FRONTEND" "$DIR_THEMES" "$DIR_STORAGE" "$DIR_DEPS"
 
 echo "[SUCCESS] Extension initialization complete." >&2

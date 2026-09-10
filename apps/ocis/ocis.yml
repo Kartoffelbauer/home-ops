@@ -118,7 +118,7 @@ services:
   ocis-ext-custom-init:
     extends:
       file: ../../shared/templates.yml
-      service: base-init-extended
+      service: base-init-outbound-alpine
     container_name: ocis-ext-custom-init
 
     # Configuration: Set user and group IDs for oCIS (Alpabetized)

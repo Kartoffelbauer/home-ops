@@ -3,7 +3,7 @@ services:
   home-assistant-init:
     extends:
       file: ../../shared/templates.yml
-      service: base-init
+      service: base-init-outbound-alpine
     container_name: home-assistant-init
 
     # Execution: Install mosquitto tools, build password file, and fix permissions
@@ -24,7 +24,7 @@ services:
   home-assistant-storage-init:
     extends:
       file: ../../shared/templates.yml
-      service: base-init-extended
+      service: base-init-outbound-alpine
     container_name: home-assistant-storage-init
 
     # Lifecycle: Runs after directory baseline exists, before network extensions are fetched
@@ -52,7 +52,8 @@ services:
   home-assistant-ext-init:
     extends:
       file: ../../shared/templates.yml
-      service: base-init-extended
+      service: base-init-outbound
+    image: ghcr.io/home-assistant/home-assistant:${HOMEASSISTANT_DOCKER_TAG:-2026.9}
     container_name: home-assistant-ext-init
 
     # Lifecycle: Wait for required services to be ready before running
@@ -89,10 +90,12 @@ services:
       # Theme extensions
       - "theme=piitaya/lovelace-mushroom-themes:${HOMEASSISTANT_EXT_LOVELACE_MUSHROOM_THEMES_DOCKER_TAG:-latest}"
 
-    # State: Mount the config volume and script
+    # State: Mount the config volume and script and in-memory temp areas
     volumes:
       - ./data/config:/config
       - ./init/init-extensions.sh:/init.sh:ro
+    tmpfs:
+      - /tmp:rw,exec,nosuid,nodev
 
   # --- Main Smart Home Service: Home Assistant ---
   home-assistant:
@@ -121,6 +124,7 @@ services:
     # Configuration: Environment variables
     environment:
       HOMEASSISTANT_LOG_LEVEL: "${HOMEASSISTANT_LOG_LEVEL:-info}"
+      PYTHONUSERBASE: "/config/deps"
 
     # State: Mount config and media directories and in-memory temp areas
     volumes:
