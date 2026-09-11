@@ -26,7 +26,7 @@ FILE_RESOURCES="${DIR_STORAGE}/lovelace_resources"
 MANIFEST_FILE="/config/.ha_extension_manifest.json"
 
 # Ensure runtime dependencies are met (Adapted for Debian/HA Image)
-if ! command -v jq >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1; then
+if ! command -v jq >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1 || ! command -v wget >/dev/null 2>&1; then
   echo "[INIT] Installing required system dependencies: jq, unzip, wget..." >&2
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -qq && apt-get install -yqq jq unzip wget >/dev/null 2>&1
@@ -55,41 +55,61 @@ echo '{"version":1,"minor_version":1,"key":"lovelace_resources","data":{"items":
 # 2. Cache & API Helpers (DRY)
 # ------------------------------------------------------------------------------
 
-# Wrapper for GitHub API requests with network error handling
+# Wrapper for GitHub API requests
 github_api_req() {
   local endpoint="$1"
-  local response_file="${TEMP_WORKSPACE}/api_response.json"
-  local status=0
 
   if [ -n "${GITHUB_TOKEN:-}" ]; then
-    wget -qO "$response_file" --header="Authorization: Bearer ${GITHUB_TOKEN}" "https://api.github.com/${endpoint}" || status=$?
+    wget -qO- --header="Authorization: Bearer ${GITHUB_TOKEN}" "https://api.github.com/${endpoint}" 2>/dev/null
   else
-    wget -qO "$response_file" "https://api.github.com/${endpoint}" || status=$?
+    wget -qO- "https://api.github.com/${endpoint}" 2>/dev/null
   fi
-
-  if [ "$status" -ne 0 ] || [ ! -f "$response_file" ]; then
-    echo "[ERROR] GitHub API request failed (Status: ${status}). Check connectivity or GITHUB_TOKEN." >&2
-    exit 1
-  fi
-
-  cat "$response_file"
 }
 
 # Queries GitHub for the latest release tag
 get_latest_version() {
   local repo="$1"
-  local json_payload=""
   local res=""
+  local release_json=""
 
-  json_payload=$(github_api_req "repos/${repo}/releases/latest")
-  res=$(echo "$json_payload" | jq -r '.tag_name // empty')
+  # Attempt to fetch the latest release tag (suppress wget failure on 404 with || true)
+  release_json=$(github_api_req "repos/${repo}/releases/latest") || true
 
+  if [ -n "$release_json" ]; then
+    res=$(echo "$release_json" | jq -r '.tag_name // empty')
+  fi
+
+  # Fallback to the default branch (main/master) if no release tag was found
   if [ -z "$res" ]; then
-    echo "[ERROR] Could not extract valid release tag information for repository: ${repo}" >&2
+    echo "[INFO] No release found for ${repo}. Falling back to default branch." >&2
+
+    local repo_json=""
+    if ! repo_json=$(github_api_req "repos/${repo}"); then
+      echo "[ERROR] Failed to fetch repository data for ${repo}. Check connectivity or GITHUB_TOKEN." >&2
     exit 1
+    fi
+
+    res=$(echo "$repo_json" | jq -r '.default_branch // empty')
+
+    if [ -z "$res" ]; then
+      echo "[ERROR] Could not extract default branch for repository: ${repo}" >&2
+      exit 1
+    fi
   fi
 
   echo "$res"
+}
+
+# Extracts asset download URLs for a given release and file extension suffix
+get_release_asset_urls() {
+  local repo="$1" version="$2" suffix="$3"
+  local api_json=""
+
+  api_json=$(github_api_req "repos/${repo}/releases/tags/${version}") || true
+
+  if [ -n "$api_json" ]; then
+    echo "$api_json" | jq -r ".assets[]? | select(.name | endswith(\"${suffix}\")) | .browser_download_url"
+  fi
 }
 
 # Extracts a specific property from the local manifest cache
@@ -136,7 +156,7 @@ download_and_extract() {
 # Shortcut helper to download a GitHub source archive directly
 download_source_zip() {
   local repo="$1" version="$2"
-  download_and_extract "https://github.com/${repo}/archive/refs/tags/${version}.zip"
+  download_and_extract "https://github.com/${repo}/archive/${version}.zip"
 }
 
 # Sequential heuristic scanner for finding the correct javascript asset in an archive
@@ -186,11 +206,11 @@ install_integration() {
 
   echo "[INSTALL] Integration: ${repo} @ ${version}..." >&2
 
-  local api_json=$(github_api_req "repos/${repo}/releases/tags/${version}")
-  local zip_url=$(echo "$api_json" | jq -r '.assets[]? | select(.name | endswith(".zip")) | .browser_download_url' | head -n 1)
+  local zip_url=""
+  zip_url=$(get_release_asset_urls "$repo" "$version" ".zip" | head -n 1)
 
   if [ -z "$zip_url" ]; then
-    zip_url="https://github.com/${repo}/archive/refs/tags/${version}.zip"
+    zip_url="https://github.com/${repo}/archive/${version}.zip"
   fi
 
   local extracted_dir=$(download_and_extract "$zip_url")
@@ -226,8 +246,8 @@ install_frontend() {
 
   mkdir -p "$temp_dest"
 
-  local api_json=$(github_api_req "repos/${repo}/releases/tags/${version}")
-  local asset_url=$(echo "$api_json" | jq -r '.assets[]? | select(.name | endswith(".js")) | .browser_download_url' | head -n 1)
+  local asset_url=""
+  asset_url=$(get_release_asset_urls "$repo" "$version" ".js" | head -n 1)
 
   if [ -n "$asset_url" ]; then
     final_js_file="${temp_dest}/${asset_url##*/}"
@@ -266,8 +286,8 @@ install_theme() {
 
   mkdir -p "$temp_dest"
 
-  local api_json=$(github_api_req "repos/${repo}/releases/tags/${version}")
-  local asset_urls=$(echo "$api_json" | jq -r '.assets[]? | select(.name | endswith(".yaml")) | .browser_download_url')
+  local asset_urls=""
+  asset_urls=$(get_release_asset_urls "$repo" "$version" ".yaml")
 
   if [ -n "$asset_urls" ]; then
     for url in $asset_urls; do
@@ -388,23 +408,29 @@ for repo in $TRACKED_REPOS; do
   cached_type=$(get_cached_data "$repo" "type")
 
   if ! echo "$VALID_REPOS" | grep -q ":${repo}:"; then
+    target_dir=""
+    folder_name=""
+    is_valid="false"
+
+    # Map the type dynamically to avoid repetitive conditional blocks
     if [ "$cached_type" = "frontend" ]; then
+      target_dir="$DIR_FRONTEND"
       folder_name="${repo##*/}"
-      if ! echo "$VALID_FRONTENDS" | grep -q ":${folder_name}:"; then
-        echo "[CLEANUP] Removing orphaned frontend: ${folder_name}" >&2
-        rm -rf "${DIR_FRONTEND}/${folder_name}"
-      fi
-    else
+      echo "$VALID_FRONTENDS" | grep -q ":${folder_name}:" && is_valid="true"
+    elif [ "$cached_type" = "theme" ]; then
+      target_dir="$DIR_THEMES"
       folder_name=$(get_cached_data "$repo" "folder")
-      if [ -n "$folder_name" ]; then
-        if [ "$cached_type" = "theme" ] && ! echo "$VALID_THEMES" | grep -q ":${folder_name}:"; then
-          echo "[CLEANUP] Removing orphaned theme: ${folder_name}" >&2
-          rm -rf "${DIR_THEMES}/${folder_name}"
-        elif [ "$cached_type" = "integration" ] && ! echo "$VALID_INTEGRATIONS" | grep -q ":${folder_name}:"; then
-        echo "[CLEANUP] Removing orphaned integration: ${folder_name}" >&2
-        rm -rf "${DIR_INTEGRATIONS}/${folder_name}"
-        fi
-      fi
+      echo "$VALID_THEMES" | grep -q ":${folder_name}:" && is_valid="true"
+    elif [ "$cached_type" = "integration" ]; then
+      target_dir="$DIR_INTEGRATIONS"
+      folder_name=$(get_cached_data "$repo" "folder")
+      echo "$VALID_INTEGRATIONS" | grep -q ":${folder_name}:" && is_valid="true"
+    fi
+
+    # Execute cleanup in one consolidated location
+    if [ "$is_valid" = "false" ] && [ -n "$folder_name" ] && [ -n "$target_dir" ]; then
+      echo "[CLEANUP] Removing orphaned ${cached_type}: ${folder_name}" >&2
+      rm -rf "${target_dir}/${folder_name}"
     fi
 
     # Delete the repo entry from the manifest to keep the cache clean
@@ -449,13 +475,15 @@ if [ -s "$REQ_FILE" ]; then
   mkdir -p "$TARGET_PATH"
 
   # Install requirements via uv with pip fallback
-  if command -v uv >/dev/null 2>&1; then
-    uv pip install -r "$DEDUP_FILE" --target "$TARGET_PATH"
-  else
-    python3 -m pip install -r "$DEDUP_FILE" --target "$TARGET_PATH"
-  fi
+  # Run quietly; capture output to print only if the package build fails
+  build_log="${TEMP_WORKSPACE}/pip_build.log"
+  install_status=0
 
-  echo "[SUCCESS] Python dependencies provisioned at ${TARGET_PATH}" >&2
+  if command -v uv >/dev/null 2>&1; then
+    uv pip install --quiet --link-mode=copy -r "$DEDUP_FILE" --target "$TARGET_PATH" >"$build_log" 2>&1 || install_status=$?
+  else
+    python3 -m pip install --quiet --no-warn-script-location -r "$DEDUP_FILE" --target "$TARGET_PATH" >"$build_log" 2>&1 || install_status=$?
+  fi
 else
   # If no requirements are needed anymore, ensure the dependency folder is wiped to reclaim storage space.
   echo "[DEPENDENCIES] No Python requirements found. Cleaning up old deps..." >&2
