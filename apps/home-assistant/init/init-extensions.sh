@@ -165,19 +165,19 @@ find_frontend_asset() {
   local short_name="${repo_name#lovelace-}"
   local target_file=""
 
-  # Priority 1: Dist/Release folder with accurately named file
-  target_file=$(find "$search_dir" -type f \( -ipath "*/dist/*.js" -o -ipath "*/release/*.js" \) \( -iname "${repo_name}.js" -o -iname "${short_name}.js" \) | head -n 1)
+  # Priority 1: Accurately named file inside a built folder (dist/release/build)
+  target_file=$(find "$search_dir" -type f \( -ipath "*/dist/*.js" -o -ipath "*/release/*.js" -o -ipath "*/build/*.js" \) \( -iname "${repo_name}.js" -o -iname "${short_name}.js" \) | head -n 1)
   if [ -n "$target_file" ]; then echo "$target_file"; return 0; fi
 
-  # Priority 2: Any JS file in Dist/Release folder
-  target_file=$(find "$search_dir" -type f -ipath "*/dist/*.js" | head -n 1)
-  if [ -n "$target_file" ]; then echo "$target_file"; return 0; fi
-
-  # Priority 3: Accurately named file anywhere outside node_modules/src
+  # Priority 2: Accurately named file anywhere (excluding raw source folders)
   target_file=$(find "$search_dir" -type f -name "*.js" -not -path "*/node_modules/*" -not -path "*/src/*" \( -iname "${repo_name}.js" -o -iname "${short_name}.js" \) | head -n 1)
   if [ -n "$target_file" ]; then echo "$target_file"; return 0; fi
 
-  # Fallback: Any valid JS file outside excluded paths
+  # Priority 3: ANY JS file inside a built folder (blind fallback)
+  target_file=$(find "$search_dir" -type f \( -ipath "*/dist/*.js" -o -ipath "*/release/*.js" -o -ipath "*/build/*.js" \) | head -n 1)
+  if [ -n "$target_file" ]; then echo "$target_file"; return 0; fi
+
+  # Priority 4: ANY valid JS file outside excluded paths (ultimate fallback)
   find "$search_dir" -type f -name "*.js" -not -path "*/node_modules/*" -not -path "*/src/*" -not -name "*config*" | head -n 1
 }
 
@@ -246,8 +246,22 @@ install_frontend() {
 
   mkdir -p "$temp_dest"
 
+  local asset_urls=""
   local asset_url=""
-  asset_url=$(get_release_asset_urls "$repo" "$version" ".js" | head -n 1)
+
+  asset_urls=$(get_release_asset_urls "$repo" "$version" ".js")
+
+  if [ -n "$asset_urls" ]; then
+    local short_name="${repo_name#lovelace-}"
+
+    # Priority 1: Find an asset URL that explicitly matches the repo name
+    asset_url=$(echo "$asset_urls" | grep -i -e "/${repo_name}\.js$" -e "/${short_name}\.js$" | head -n 1 || true)
+
+    # Priority 2: Fallback to the first available .js asset if no exact match exists
+    if [ -z "$asset_url" ]; then
+      asset_url=$(echo "$asset_urls" | head -n 1)
+    fi
+  fi
 
   if [ -n "$asset_url" ]; then
     final_js_file="${temp_dest}/${asset_url##*/}"
@@ -484,6 +498,14 @@ if [ -s "$REQ_FILE" ]; then
   else
     python3 -m pip install --quiet --no-warn-script-location -r "$DEDUP_FILE" --target "$TARGET_PATH" >"$build_log" 2>&1 || install_status=$?
   fi
+
+  if [ "$install_status" -ne 0 ]; then
+    echo "[ERROR] Failed to install Python requirements! Build log:" >&2
+    cat "$build_log" >&2
+    exit 1
+  fi
+
+  echo "[SUCCESS] Python dependencies provisioned at ${TARGET_PATH}" >&2
 else
   # If no requirements are needed anymore, ensure the dependency folder is wiped to reclaim storage space.
   echo "[DEPENDENCIES] No Python requirements found. Cleaning up old deps..." >&2
