@@ -84,6 +84,7 @@ services:
       # Frontend extensions
       - "frontend=brunosabot/streamline-card:${HOMEASSISTANT_EXT_STREAMLINE_CARD_DOCKER_TAG:-latest}"
       - "frontend=francois-le-ko4la/lovelace-entity-progress-card:${HOMEASSISTANT_EXT_LOVELACE_ENTITY_PROGRESS_CARD_DOCKER_TAG:-latest}"
+      - "frontend=homeassistant-extras/room-summary-card:${HOMEASSISTANT_EXT_ROOM_SUMMARY_CARD_DOCKER_TAG:-latest}"
       - "frontend=Nerwyn/custom-card-features:${HOMEASSISTANT_EXT_CUSTOM_CARD_FEATURES_DOCKER_TAG:-latest}"
       - "frontend=piitaya/lovelace-mushroom:${HOMEASSISTANT_EXT_LOVELACE_MUSHROOM_DOCKER_TAG:-latest}"
 
