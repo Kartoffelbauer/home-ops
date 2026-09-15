@@ -76,6 +76,7 @@ services:
     command:
       # Integration extensions
       - "integration=3dg1luk43/ha_washdata:${HOMEASSISTANT_EXT_HA_WASHDATA_DOCKER_TAG:-latest}"
+      - "integration=basnijholt/adaptive-lighting:${HOMEASSISTANT_EXT_ADAPTIVE_LIGHTING_DOCKER_TAG:-latest}"
       - "integration=DAB-LABS/HAIR:${HOMEASSISTANT_EXT_HAIR_DOCKER_TAG:-latest}"
       - "integration=edmogeor/hass-ga-manual-ui:${HOMEASSISTANT_EXT_HASS_GA_MANUAL_UI_DOCKER_TAG:-latest}"
       - "integration=thomasloven/hass-browser_mod:${HOMEASSISTANT_EXT_HASS_BROWSER_MOD_DOCKER_TAG:-latest}"
