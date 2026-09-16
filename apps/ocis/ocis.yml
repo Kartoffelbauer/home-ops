@@ -321,7 +321,7 @@ services:
     extends:
       file: ../../shared/templates.yml
       service: base-secure
-    image: mariadb:${MARIADB_DOCKER_TAG:-11.4}
+    image: mariadb:${MARIADB_DOCKER_TAG:-11.8}
     container_name: ocis-onlyoffice-db
 
     # Security: Run as non-root user, lock filesystem

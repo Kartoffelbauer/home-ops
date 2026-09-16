@@ -59,7 +59,7 @@ services:
   # --- Alpine Outbound Init Service: Standard shell & package management environment ---
   base-init-outbound-alpine:
     <<: [ *init-common, *outbound-dependencies ]
-    image: alpine:${ALPINE_DOCKER_TAG:-3.23}
+    image: alpine:${ALPINE_DOCKER_TAG:-3.24}
 
     # Platform: Specify the platform for compatibility
     platform: linux/amd64
