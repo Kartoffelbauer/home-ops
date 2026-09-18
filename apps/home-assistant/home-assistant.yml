@@ -11,7 +11,7 @@ services:
       sh -c "
         cp /config/configuration.yaml /data-config &&
         touch /data-config/automations.yaml /data-config/scripts.yaml /data-config/scenes.yaml /data-config/secrets.yaml &&
-        chown -R 0:0 /data-config /data-media
+        chown -R 0:0 /data-config /data-media /data-music-assistant
       "
 
     # State: Mount configuration and data directories
@@ -19,6 +19,7 @@ services:
       - ./config:/config
       - ./data/config:/data-config
       - ./data/media:/data-media
+      - ./data/music-assistant:/data-music-assistant
 
   # --- Storage Init Service: Provisions internal storage entries (HTTP & MQTT) ---
   home-assistant-storage-init:
@@ -142,6 +143,42 @@ services:
     # Monitoring: Internal check targeting the native API
     healthcheck:
       test: "wget -qO /dev/null http://127.0.0.1:8123/ || exit 1"
+
+  # --- Audio Streaming Service: Music Assistant ---
+  home-assistant-ma:
+    extends:
+      file: ../../shared/templates.yml
+      service: base-secure-outbound
+    image: ghcr.io/music-assistant/server:${HOMEASSISTANT_MA_DOCKER_TAG:-2.10}
+    container_name: home-assistant-ma
+
+    # Connectivity: Use host network mode for device discovery (mDNS) and streaming
+    network_mode: host
+
+    # Security: Lock file system
+    read_only: true
+
+    # Lifecycle: Wait for config directory initialization
+    depends_on:
+      home-assistant-init:
+        condition: service_completed_successfully
+
+    # Configuration: Environment variables
+    environment:
+      LOG_LEVEL: "${HOMEASSISTANT_MA_LOG_LEVEL:-info}"
+
+    # State: Mount data and media directories and in-memory temp areas
+    volumes:
+      - ./data/music-assistant:/data
+      - ./data/media:/media:ro
+      - /run/dbus:/run/dbus:ro
+    tmpfs:
+      - /tmp:rw,exec,nosuid,nodev
+      - /run:rw,exec,nosuid,nodev
+
+    # Monitoring: Internal check targeting the web UI
+    healthcheck:
+      test: "wget -qO /dev/null http://127.0.0.1:8095/ || exit 1"
 
 # --- Global Network Definitions ---
 networks:

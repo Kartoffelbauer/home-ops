@@ -141,6 +141,10 @@ sudo ufw allow in proto udp to ff02::c port 3702 comment 'WS-Discovery: IPv6 Mul
 # Layer 4: Smart Home Gateway Responses
 sudo ufw allow in proto udp from <LAN_SUBNET_V4> port 1900 to <HOST_LAN_IPV4> comment 'UPnP: LAN UDP Responses'
 sudo ufw allow in proto tcp from <LAN_SUBNET_V4> to <HOST_LAN_IPV4> port 30000:40000 comment 'UPnP: LAN TCP Push APIs'
+
+# Layer 5: Music Assistant
+sudo ufw allow in proto tcp from <LAN_SUBNET_V4> to <HOST_LAN_IPV4> port 8095 comment 'Music Assistant: Web UI & API (Required for Speakers)'
+sudo ufw allow in proto tcp from <LAN_SUBNET_V4> to <HOST_LAN_IPV4> port 8097,8098 comment 'Music Assistant: Streaming Ports'
 ```
 
 Apply the ufw rules immediately:
