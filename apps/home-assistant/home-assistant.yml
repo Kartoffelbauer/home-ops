@@ -88,6 +88,7 @@ services:
       - "frontend=homeassistant-extras/room-summary-card:${HOMEASSISTANT_EXT_ROOM_SUMMARY_CARD_DOCKER_TAG:-latest}"
       - "frontend=Nerwyn/custom-card-features:${HOMEASSISTANT_EXT_CUSTOM_CARD_FEATURES_DOCKER_TAG:-latest}"
       - "frontend=piitaya/lovelace-mushroom:${HOMEASSISTANT_EXT_LOVELACE_MUSHROOM_DOCKER_TAG:-latest}"
+      - "frontend=xBourner/status-card:${HOMEASSISTANT_EXT_STATUS_CARD_DOCKER_TAG:-latest}"
 
       # Theme extensions
       - "theme=piitaya/lovelace-mushroom-themes:${HOMEASSISTANT_EXT_LOVELACE_MUSHROOM_THEMES_DOCKER_TAG:-latest}"
