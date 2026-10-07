@@ -10,7 +10,8 @@ services:
     command: >
       sh -c "
         cp /config/configuration.yaml /data-config &&
-        touch /data-config/automations.yaml /data-config/scripts.yaml /data-config/scenes.yaml /data-config/secrets.yaml
+        touch /data-config/automations.yaml /data-config/scripts.yaml /data-config/scenes.yaml /data-config/secrets.yaml &&
+        chown -R 0:0 /data-config /data-media
       "
 
     # State: Mount configuration and data directories
