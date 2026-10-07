@@ -52,7 +52,7 @@ services:
     extends:
       file: ../../shared/templates.yml
       service: base-init-outbound
-    image: ghcr.io/home-assistant/home-assistant:${HOMEASSISTANT_DOCKER_TAG:-2026.9}
+    image: ghcr.io/home-assistant/home-assistant:${HOMEASSISTANT_DOCKER_TAG:-2026.10}
     container_name: home-assistant-ext-init
 
     # Lifecycle: Wait for required services to be ready before running
@@ -104,7 +104,7 @@ services:
     extends:
       file: ../../shared/templates.yml
       service: base-secure-outbound
-    image: ghcr.io/home-assistant/home-assistant:${HOMEASSISTANT_DOCKER_TAG:-2026.9}
+    image: ghcr.io/home-assistant/home-assistant:${HOMEASSISTANT_DOCKER_TAG:-2026.10}
     container_name: home-assistant
 
     # Connectivity: Use host network mode for device discovery (mDNS)
