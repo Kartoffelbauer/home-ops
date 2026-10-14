@@ -10,8 +10,9 @@ services:
     command: >
       sh -c "
         cp /config/configuration.yaml /data-config &&
-        cp /config/automations.yaml /data-config &&
-        touch /data-config/scripts.yaml /data-config/scenes.yaml /data-config/secrets.yaml &&
+        rm -rf /data-config/packages &&
+        cp -r /config/packages /data-config &&
+        touch /data-config/automations.yaml /data-config/scripts.yaml /data-config/scenes.yaml /data-config/secrets.yaml &&
         chown -R 0:0 /data-config /data-media
       "
 

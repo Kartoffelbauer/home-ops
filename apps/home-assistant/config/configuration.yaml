@@ -1,6 +1,10 @@
 # Loads default set of integrations. Do not remove.
 default_config:
 
+# Load packages
+homeassistant:
+  packages: !include_dir_named packages
+
 # Load frontend themes
 frontend:
   themes: !include_dir_merge_named themes
