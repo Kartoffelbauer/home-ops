@@ -93,7 +93,7 @@ services:
       - "frontend=piitaya/lovelace-mushroom:${HOMEASSISTANT_EXT_LOVELACE_MUSHROOM_DOCKER_TAG:-latest}"
 
       # Explicit Python packages for ha-mcp
-      - "python=ha-mcp>=7.10.0"
+      - "python=ha-mcp"
 
       # Theme extensions
       - "theme=piitaya/lovelace-mushroom-themes:${HOMEASSISTANT_EXT_LOVELACE_MUSHROOM_THEMES_DOCKER_TAG:-latest}"
