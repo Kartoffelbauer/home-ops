@@ -85,7 +85,6 @@ services:
       # - "integration=frenck/spook:${HOMEASSISTANT_EXT_SPOOK_DOCKER_TAG:-latest}" # Used for cleaning up old entities, but not needed for normal operation
 
       # Frontend extensions
-      - "frontend=brunosabot/streamline-card:${HOMEASSISTANT_EXT_STREAMLINE_CARD_DOCKER_TAG:-latest}"
       - "frontend=francois-le-ko4la/lovelace-entity-progress-card:${HOMEASSISTANT_EXT_LOVELACE_ENTITY_PROGRESS_CARD_DOCKER_TAG:-latest}"
       - "frontend=homeassistant-extras/room-summary-card:${HOMEASSISTANT_EXT_ROOM_SUMMARY_CARD_DOCKER_TAG:-latest}"
       - "frontend=Nerwyn/custom-card-features:${HOMEASSISTANT_EXT_CUSTOM_CARD_FEATURES_DOCKER_TAG:-latest}"
@@ -134,7 +133,6 @@ services:
     # State: Mount config and media directories and in-memory temp areas
     volumes:
       - ./data/config:/config
-      - ./config/streamline-templates.yaml:/config/www/community/streamline-card/streamline_templates.yaml:ro
       - ./data/media:/media
       - /run/dbus:/run/dbus:ro
     tmpfs:
