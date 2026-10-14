@@ -488,13 +488,13 @@ if [ -s "$REQ_FILE" ]; then
   rm -rf "${DIR_DEPS}/lib" "${DIR_DEPS}/bin"
   mkdir -p "$TARGET_PATH"
 
-  # Install requirements via uv with pip fallback
+  # Install requirements via uv with fallback
   # Run quietly; capture output to print only if the package build fails
   build_log="${TEMP_WORKSPACE}/pip_build.log"
   install_status=0
 
   if command -v uv >/dev/null 2>&1; then
-    uv pip install --quiet --link-mode=copy -r "$DEDUP_FILE" --target "$TARGET_PATH" >"$build_log" 2>&1 || install_status=$?
+    uv pip install --quiet --link-mode=copy --index-strategy unsafe-best-match -r "$DEDUP_FILE" --target "$TARGET_PATH" >"$build_log" 2>&1 || install_status=$?
   else
     python3 -m pip install --quiet --no-warn-script-location -r "$DEDUP_FILE" --target "$TARGET_PATH" >"$build_log" 2>&1 || install_status=$?
   fi
