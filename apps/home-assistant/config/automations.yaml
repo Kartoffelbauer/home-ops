@@ -1,0 +1,82 @@
+# ==============================================================================
+# Automation: check_zigbee_ota_updates
+# Description: Dynamically discovers all online, OTA-capable Zigbee2MQTT devices
+#              and sequentially triggers an OTA firmware check without failing
+#              on edge cases.
+# ==============================================================================
+
+- id: check_zigbee_ota_updates
+  alias: Check Zigbee OTA Updates
+  description: >-
+    Dynamically discovers all online, OTA-capable Zigbee2MQTT devices and
+    sequentially triggers an OTA firmware check without failing on edge cases.
+  mode: single
+  max_exceeded: silent
+
+  triggers:
+    - trigger: time
+      at: "03:30:00"
+
+  variables:
+    bridge_device_id: >-
+      {# Dynamically locate the Zigbee2MQTT Bridge device_id #}
+      {{ integration_entities('mqtt')
+         | map('device_id')
+         | unique
+         | reject('none')
+         | select('is_device_attr', 'name', 'Zigbee2MQTT Bridge')
+         | first
+         | default(none) }}
+
+    ota_devices: >-
+      {# Collect only online update.* entities linked to the Z2M Bridge #}
+      {% if bridge_device_id is not none %}
+        {{ integration_entities('mqtt')
+           | select('match', '^update\.')
+           | select('has_value')
+           | map('device_id')
+           | unique
+           | reject('none')
+           | select('is_device_attr', 'via_device_id', bridge_device_id)
+           | map('device_attr', 'name')
+           | reject('none')
+           | sort
+           | list }}
+      {% else %}
+        {{ [] }}
+      {% endif %}
+
+  conditions:
+    - condition: template
+      value_template: >-
+        {# Ensure at least one valid OTA-capable device exists to prevent empty runs #}
+        {{ ota_devices | count > 0 }}
+
+    - condition: template
+      value_template: >-
+        {# Verify the Z2M Bridge itself has available entities (online check) #}
+        {{ device_entities(bridge_device_id)
+           | select('has_value')
+           | list
+           | count > 0 }}
+
+  actions:
+    - repeat:
+        for_each: "{{ ota_devices }}"
+        sequence:
+          - action: mqtt.publish
+            continue_on_error: true
+            data:
+              topic: zigbee2mqtt/bridge/request/device/ota_update/check
+              payload: >-
+                {# Safely serialize the device friendly name into a JSON payload #}
+                {"id": {{ repeat.item | to_json }}}
+
+          - if:
+              - condition: template
+                value_template: >-
+                  {# Skip the 30-second cooldown delay after the final device #}
+                  {{ not repeat.last }}
+            then:
+              - delay:
+                  seconds: 30
