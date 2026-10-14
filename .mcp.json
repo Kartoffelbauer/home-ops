@@ -1,0 +1,8 @@
+{
+	"mcpServers": {
+		"home-assistant": {
+			"url": "https://home.aaronsoft.de/api/webhook/mcp_abfe648ff173c816b9a70e3f86b8817f",
+			"type": "http"
+		}
+	}
+}

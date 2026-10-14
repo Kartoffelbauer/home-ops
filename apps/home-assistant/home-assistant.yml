@@ -92,6 +92,9 @@ services:
       - "frontend=nutteloost/simple-swipe-card:${HOMEASSISTANT_EXT_CUSTOM_SWIPE_CARD_DOCKER_TAG:-latest}"
       - "frontend=piitaya/lovelace-mushroom:${HOMEASSISTANT_EXT_LOVELACE_MUSHROOM_DOCKER_TAG:-latest}"
 
+      # Explicit Python packages for ha-mcp
+      - "python=ha-mcp>=7.10.0"
+
       # Theme extensions
       - "theme=piitaya/lovelace-mushroom-themes:${HOMEASSISTANT_EXT_LOVELACE_MUSHROOM_THEMES_DOCKER_TAG:-latest}"
 

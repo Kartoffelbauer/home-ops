@@ -50,6 +50,10 @@ fi
 FILE_RESOURCES_STAGING="${TEMP_WORKSPACE}/lovelace_resources.tmp"
 echo '{"version":1,"minor_version":1,"key":"lovelace_resources","data":{"items":[]}}' > "$FILE_RESOURCES_STAGING"
 
+# Dedicated staging file to collect explicit Python package parameters
+REQ_EXTRA_FILE="${TEMP_WORKSPACE}/requirements.extra.txt"
+touch "$REQ_EXTRA_FILE"
+
 
 # ------------------------------------------------------------------------------
 # 2. Cache & API Helpers (DRY)
@@ -471,7 +475,11 @@ for manifest in "${DIR_INTEGRATIONS}"/*/manifest.json; do
   fi
 done
 
-# Only proceed with the installation pipeline if at least one requirement was found
+# Merge explicitly passed extra Python requirements if provided
+if [ -s "$REQ_EXTRA_FILE" ]; then
+  cat "$REQ_EXTRA_FILE" >> "$REQ_FILE"
+fi
+
 if [ -s "$REQ_FILE" ]; then
   # Deduplicate the requirements list to handle shared dependencies across
   # multiple integrations seamlessly without throwing installation conflicts.
