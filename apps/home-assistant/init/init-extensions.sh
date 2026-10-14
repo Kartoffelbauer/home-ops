@@ -352,12 +352,38 @@ VALID_THEMES=":"
 VALID_REPOS=":"
 
 for arg in "$@"; do
-  TYPE="integration"
-  RAW_ENTRY="$arg"
-
-  if echo "$arg" | grep -q "="; then
+  # Defensive validation: ensure argument follows strict key=value structure
+  case "$arg" in
+    *=*)
     TYPE="${arg%%=*}"
     RAW_ENTRY="${arg#*=}"
+      ;;
+    *)
+      echo "[ERROR] Invalid argument format: '${arg}'. Must use explicit type prefix (e.g., integration=..., frontend=..., theme=..., python=...)." >&2
+      exit 1
+      ;;
+  esac
+
+  # Validate that the type prefix is strictly one of the allowed categories
+  case "$TYPE" in
+    integration|frontend|theme|python)
+      ;;
+    *)
+      echo "[ERROR] Unknown extension type '${TYPE}'. Allowed types: integration, frontend, theme, python." >&2
+      exit 1
+      ;;
+  esac
+
+  # Handle manual Python dependency injection arguments ("python=pkg>=version")
+  if [ "$TYPE" = "python" ]; then
+    # Defensive check: ensure package name is non-empty and doesn't contain unsafe characters
+    if [ -z "$RAW_ENTRY" ] || echo "$RAW_ENTRY" | grep -qE '[[:space:];|&$`]'; then
+      echo "[ERROR] Invalid or unsafe python package specification: '${RAW_ENTRY}'" >&2
+      exit 1
+    fi
+    echo "$RAW_ENTRY" >> "$REQ_EXTRA_FILE"
+    echo "[DEPENDENCY] Staged explicit extra Python requirement: ${RAW_ENTRY}" >&2
+    continue
   fi
 
   REPO="${RAW_ENTRY%%:*}"
