@@ -1,10 +1,11 @@
 # ==============================================================================
-# Automation: check_zigbee_ota_updates
+# Package: zigbee_ota
 # Description: Dynamically discovers all online, OTA-capable Zigbee2MQTT devices
 #              and sequentially triggers an OTA firmware check without failing
 #              on edge cases.
 # ==============================================================================
 
+automation:
 - id: check_zigbee_ota_updates
   alias: Check Zigbee OTA Updates
   description: >-
