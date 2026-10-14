@@ -11,6 +11,7 @@ automation:
   description: >-
     Dynamically discovers all online, OTA-capable Zigbee2MQTT devices and
     sequentially triggers an OTA firmware check without failing on edge cases.
+  icon: mdi:update
   mode: single
   max_exceeded: silent
 
