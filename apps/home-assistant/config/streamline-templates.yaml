@@ -1,30 +1,34 @@
-light_adaptive:
+# ==============================================================================
+# Template: light_smart_control
+# Description: Reusable Mushroom light card with inline Custom Features sliders
+#              for brightness and color temperature (Kelvin). Dynamically hides
+#              manual temperature controls when Adaptive Lighting is active, and
+#              collapses all sliders while displaying a status badge when an
+#              optional Night Light mode binary sensor is active.
+# ==============================================================================
+
+light_smart_control:
   default:
     - name: none
     - icon: mdi:lightbulb
     - light_entity: none
     - night_light_entity: none
     - adaptive_switch_entity: none
-    - toggle_script: none
+    - toggle_script_entity: none
   card:
     type: custom:mushroom-template-card
     entity: "[[light_entity]]"
     primary: >-
-      {# Safely resolve card display name with friendly_name fallback #}
       {% set custom_name = '[[name]]' %}
-
       {% if custom_name and custom_name | lower != 'none' %}
         {{ custom_name }}
       {% else %}
         {{ state_attr('[[light_entity]]', 'friendly_name') | default('Light', true) }}
       {% endif %}
     secondary: >-
-      {# Resolve night light entity (use explicit variable or auto-derive from light_entity) #}
-      {% set custom_nl = '[[night_light_entity]]' %}
-      {% set nl_entity = custom_nl if (custom_nl and custom_nl | lower != 'none') else ('[[light_entity]]' | replace('light.', 'binary_sensor.') | replace('_lights', '_night_light')) %}
-
-      {# Display night mode status, brightness percentage when active, or translated off state #}
-      {% if is_state(nl_entity, 'on') %}
+      {% set nl_entity = '[[night_light_entity]]' %}
+      {% set is_nl = nl_entity and nl_entity | lower != 'none' and is_state(nl_entity, 'on') %}
+      {% if is_nl %}
         Nachtlicht
       {% elif is_state('[[light_entity]]', 'on') %}
         {{ ((state_attr('[[light_entity]]', 'brightness') | float(0)) / 2.55) | round(0) }}%
@@ -33,7 +37,6 @@ light_adaptive:
       {% endif %}
     icon: "[[icon]]"
     color: >-
-      {# Dynamic RGB color when available, fallback to amber when on, disabled when off #}
       {% if is_state('[[light_entity]]', 'on') %}
         {% set rgb = state_attr('[[light_entity]]', 'rgb_color') %}
         {% if rgb %}
@@ -45,36 +48,29 @@ light_adaptive:
         disabled
       {% endif %}
     badge_icon: >-
-      {# Display moon badge when night light mode is active #}
-      {% set custom_nl = '[[night_light_entity]]' %}
-      {% set nl_entity = custom_nl if (custom_nl and custom_nl | lower != 'none') else ('[[light_entity]]' | replace('light.', 'binary_sensor.') | replace('_lights', '_night_light')) %}
-
-      {% if is_state(nl_entity, 'on') %}
+      {% set nl_entity = '[[night_light_entity]]' %}
+      {% if nl_entity and nl_entity | lower != 'none' and is_state(nl_entity, 'on') %}
         mdi:weather-night
       {% endif %}
     badge_color: >-
-      {# Style night mode badge with deep-purple #}
-      {% set custom_nl = '[[night_light_entity]]' %}
-      {% set nl_entity = custom_nl if (custom_nl and custom_nl | lower != 'none') else ('[[light_entity]]' | replace('light.', 'binary_sensor.') | replace('_lights', '_night_light')) %}
-
-      {% if is_state(nl_entity, 'on') %}
+      {% set nl_entity = '[[night_light_entity]]' %}
+      {% if nl_entity and nl_entity | lower != 'none' and is_state(nl_entity, 'on') %}
         deep-purple
       {% endif %}
-    features_position: inline
     tap_action:
       action: perform-action
-      perform_action: "[[toggle_script]]"
+      perform_action: "[[toggle_script_entity]]"
       data:
         light_entity: "[[light_entity]]"
     icon_tap_action:
       action: perform-action
-      perform_action: "[[toggle_script]]"
+      perform_action: "[[toggle_script_entity]]"
       data:
         light_entity: "[[light_entity]]"
+    features_position: inline
     features:
       - type: custom:service-call
         entries:
-          # 1. Brightness Slider
           - type: slider
             entity_id: "[[light_entity]]"
             value_attribute: brightness
@@ -94,8 +90,6 @@ light_adaptive:
                 --color: var(--feature-color);
                 --thumb-transition: none;
               }
-
-          # 2. Color Temperature Slider (Kelvin)
           - type: slider
             entity_id: "[[light_entity]]"
             value_attribute: color_temp_kelvin
@@ -117,8 +111,6 @@ light_adaptive:
                 --background-opacity: 1;
                 --thumb-transition: none;
               }
-
-          # 3. Mode Toggle Button: Switch to Color Temperature (Hidden when Adaptive Lighting is active)
           - type: button
             entity_id: "[[light_entity]]"
             icon: mdi:thermometer
@@ -130,15 +122,8 @@ light_adaptive:
                   - temp
             styles: |-
               :host {
-                {# Hide temperature toggle if adaptive color is actively managing the light #}
-                {% set adapt_sw = '[[adaptive_switch_entity]]' %}
-                {% if adapt_sw and adapt_sw | lower != 'none' and is_state(adapt_sw, 'on') %}
-                  display: none !important;
-                {% endif %}
                 flex: 0 0 var(--feature-height, 42px);
               }
-
-          # 4. Mode Toggle Button: Return to Brightness
           - type: button
             entity_id: "[[light_entity]]"
             icon: mdi:brightness-6
@@ -152,19 +137,29 @@ light_adaptive:
               :host {
                 flex: 0 0 var(--feature-height, 42px);
               }
-
         styles: |-
-          .row {
+          {% set nl_entity = '[[night_light_entity]]' %}
+          {% set is_nl = nl_entity and nl_entity | lower != 'none' and is_state(nl_entity, 'on') %}
+          {% set adapt_sw = '[[adaptive_switch_entity]]' %}
+          {% set is_adapt = adapt_sw and adapt_sw | lower != 'none' and is_state(adapt_sw, 'on') %}
+          :host {
             --feature-button-spacing: 8px;
-            {# Hide entire slider row when light is in Night Light mode #}
-            {% set custom_nl = '[[night_light_entity]]' %}
-            {% set nl_entity = custom_nl if (custom_nl and custom_nl | lower != 'none') else ('[[light_entity]]' | replace('light.', 'binary_sensor.') | replace('_lights', '_night_light')) %}
-            {% if is_state(nl_entity, 'on') %}
+            {% if is_nl %}
               display: none !important;
             {% endif %}
           }
-          /* Toggle visibility between Brightness (1) and Temperature (2) sliders based on row [mode] attribute */
-          custom-feature-slider:nth-of-type(2),
+          custom-feature-slider:nth-of-type(2) {
+            position: absolute;
+            visibility: hidden;
+          }
+          custom-feature-button:nth-of-type(2) {
+            display: none;
+          }
+          {% if is_adapt %}
+          custom-feature-button:nth-of-type(1) {
+            display: none !important;
+          }
+          {% else %}
           :host([mode='temp']) custom-feature-slider:nth-of-type(1) {
             position: absolute;
             visibility: hidden;
@@ -173,11 +168,10 @@ light_adaptive:
             position: relative;
             visibility: visible;
           }
-          /* Toggle visibility between Thermometer (1) and Brightness (2) mode buttons */
-          custom-feature-button:nth-of-type(2),
           :host([mode='temp']) custom-feature-button:nth-of-type(1) {
             display: none;
           }
           :host([mode='temp']) custom-feature-button:nth-of-type(2) {
             display: flex;
           }
+          {% endif %}
