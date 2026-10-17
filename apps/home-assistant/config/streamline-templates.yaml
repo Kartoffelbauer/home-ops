@@ -19,19 +19,19 @@ light_smart_control:
     type: custom:mushroom-template-card
     entity: "[[light_entity]]"
     primary: >-
-      {% set custom_name = '[[name]]' %}
-      {% if custom_name and custom_name | lower != 'none' %}
-        {{ custom_name }}
+      {% set name = '[[name]]' %}
+      {% if name and name | lower != 'none' %}
+        {{ name }}
       {% else %}
         {{ state_attr('[[light_entity]]', 'friendly_name') | default('Light', true) }}
       {% endif %}
     secondary: >-
-      {% set nl_entity = '[[night_light_entity]]' %}
-      {% set is_nl = nl_entity and nl_entity | lower != 'none' and is_state(nl_entity, 'on') %}
+      {% set nl = '[[night_light_entity]]' %}
+      {% set is_nl = nl not in ['none', ''] and is_state(nl, 'on') %}
       {% if is_nl %}
         Nachtlicht
       {% elif is_state('[[light_entity]]', 'on') %}
-        {{ ((state_attr('[[light_entity]]', 'brightness') | float(0)) / 2.55) | round(0) }}%
+        {{ (state_attr('[[light_entity]]', 'brightness') | float(0) / 2.55) | round }}%
       {% else %}
         {{ state_translated('[[light_entity]]') }}
       {% endif %}
@@ -39,22 +39,16 @@ light_smart_control:
     color: >-
       {% if is_state('[[light_entity]]', 'on') %}
         {% set rgb = state_attr('[[light_entity]]', 'rgb_color') %}
-        {% if rgb %}
-          rgb({{ rgb | join(',') }})
-        {% else %}
-          amber
-        {% endif %}
-      {% else %}
-        disabled
+        {{ 'rgb(' ~ rgb | join(',') ~ ')' if rgb else 'amber' }}
       {% endif %}
     badge_icon: >-
-      {% set nl_entity = '[[night_light_entity]]' %}
-      {% if nl_entity and nl_entity | lower != 'none' and is_state(nl_entity, 'on') %}
+      {% set nl = '[[night_light_entity]]' %}
+      {% if nl not in ['none', ''] and is_state(nl, 'on') %}
         mdi:weather-night
       {% endif %}
     badge_color: >-
-      {% set nl_entity = '[[night_light_entity]]' %}
-      {% if nl_entity and nl_entity | lower != 'none' and is_state(nl_entity, 'on') %}
+      {% set nl = '[[night_light_entity]]' %}
+      {% if nl not in ['none', ''] and is_state(nl, 'on') %}
         deep-purple
       {% endif %}
     tap_action:
@@ -75,9 +69,7 @@ light_smart_control:
             entity_id: "[[light_entity]]"
             value_attribute: brightness
             unit_of_measurement: "%"
-            range:
-              - 1
-              - 100
+            range: [1, 100]
             tap_action:
               action: perform-action
               perform_action: light.turn_on
@@ -118,12 +110,7 @@ light_smart_control:
               action: fire-dom-event
               event_type: cf-attributes
               attributes:
-                mode:
-                  - temp
-            styles: |-
-              :host {
-                flex: 0 0 var(--feature-height, 42px);
-              }
+                mode: [temp]
           - type: button
             entity_id: "[[light_entity]]"
             icon: mdi:brightness-6
@@ -131,48 +118,47 @@ light_smart_control:
               action: fire-dom-event
               event_type: cf-attributes
               attributes:
-                mode:
-                  - temp
-            styles: |-
-              :host {
-                flex: 0 0 var(--feature-height, 42px);
-              }
+                mode: [temp]
         styles: |-
           {% set is_off = not is_state('[[light_entity]]', 'on') %}
-          {% set nl_entity = '[[night_light_entity]]' %}
-          {% set is_nl = nl_entity and nl_entity | lower != 'none' and is_state(nl_entity, 'on') %}
-          {% set adapt_sw = '[[adaptive_color_entity]]' %}
-          {% set is_adapt = adapt_sw and adapt_sw | lower != 'none' and is_state(adapt_sw, 'on') %}
+          {% set nl = '[[night_light_entity]]' %}
+          {% set is_nl = nl not in ['none', ''] and is_state(nl, 'on') %}
+          {% set adapt = '[[adaptive_color_entity]]' %}
+          {% set is_adapt = adapt not in ['none', ''] and is_state(adapt, 'on') %}
+
           :host {
             --feature-button-spacing: 8px;
             {% if is_off or is_nl %}
               display: none !important;
             {% endif %}
           }
-          custom-feature-slider:nth-of-type(2) {
-            position: absolute;
-            visibility: hidden;
+          custom-feature-button {
+            flex: 0 0 var(--feature-height, 42px);
           }
+          custom-feature-slider:nth-of-type(2),
           custom-feature-button:nth-of-type(2) {
-            display: none;
-          }
-          {% if is_adapt %}
-          custom-feature-button:nth-of-type(1) {
-            display: none !important;
-          }
-          {% else %}
-          :host([mode='temp']) custom-feature-slider:nth-of-type(1) {
             position: absolute;
             visibility: hidden;
-          }
-          :host([mode='temp']) custom-feature-slider:nth-of-type(2) {
-            position: relative;
-            visibility: visible;
-          }
-          :host([mode='temp']) custom-feature-button:nth-of-type(1) {
             display: none;
           }
-          :host([mode='temp']) custom-feature-button:nth-of-type(2) {
-            display: flex;
-          }
+
+          {% if is_adapt %}
+            custom-feature-button:nth-of-type(1) {
+              display: none !important;
+            }
+          {% else %}
+            :host([mode='temp']) custom-feature-slider:nth-of-type(1),
+            :host([mode='temp']) custom-feature-button:nth-of-type(1) {
+              position: absolute;
+              visibility: hidden;
+              display: none;
+            }
+            :host([mode='temp']) custom-feature-slider:nth-of-type(2) {
+              position: relative;
+              visibility: visible;
+            }
+            :host([mode='temp']) custom-feature-button:nth-of-type(2) {
+              position: static;
+              display: flex;
+            }
           {% endif %}
