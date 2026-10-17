@@ -3,8 +3,8 @@
 # Description: Reusable Mushroom light card with inline Custom Features sliders
 #              for brightness and color temperature (Kelvin). Dynamically hides
 #              manual temperature controls when Adaptive Lighting is active, and
-#              collapses all sliders while displaying a status badge when an
-#              optional Night Light mode binary sensor is active.
+#              collapses all sliders when the light is off or when an optional
+#              Night Light mode binary sensor is active.
 # ==============================================================================
 
 light_smart_control:
@@ -13,7 +13,7 @@ light_smart_control:
     - icon: mdi:lightbulb
     - light_entity: none
     - night_light_entity: none
-    - adaptive_switch_entity: none
+    - adaptive_color_entity: none
     - toggle_script_entity: none
   card:
     type: custom:mushroom-template-card
@@ -138,13 +138,14 @@ light_smart_control:
                 flex: 0 0 var(--feature-height, 42px);
               }
         styles: |-
+          {% set is_off = not is_state('[[light_entity]]', 'on') %}
           {% set nl_entity = '[[night_light_entity]]' %}
           {% set is_nl = nl_entity and nl_entity | lower != 'none' and is_state(nl_entity, 'on') %}
-          {% set adapt_sw = '[[adaptive_switch_entity]]' %}
+          {% set adapt_sw = '[[adaptive_color_entity]]' %}
           {% set is_adapt = adapt_sw and adapt_sw | lower != 'none' and is_state(adapt_sw, 'on') %}
           :host {
             --feature-button-spacing: 8px;
-            {% if is_nl %}
+            {% if is_off or is_nl %}
               display: none !important;
             {% endif %}
           }
