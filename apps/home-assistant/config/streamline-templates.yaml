@@ -32,8 +32,10 @@ light_smart_control:
         Nachtlicht
       {% elif is_state('[[light_entity]]', 'on') %}
         {{ (state_attr('[[light_entity]]', 'brightness') | float(0) / 2.55) | round }}%
+      {% elif is_state('[[light_entity]]', 'off') %}
+        Aus
       {% else %}
-        {{ state_translated('[[light_entity]]') }}
+        Nicht verfügbar
       {% endif %}
     icon: "[[icon]]"
     color: >-
@@ -111,6 +113,10 @@ light_smart_control:
               event_type: cf-attributes
               attributes:
                 mode: [temp]
+            styles: |-
+              :host {
+                flex: 0 0 var(--feature-height, 42px);
+              }
           - type: button
             entity_id: "[[light_entity]]"
             icon: mdi:brightness-6
@@ -119,6 +125,10 @@ light_smart_control:
               event_type: cf-attributes
               attributes:
                 mode: [temp]
+            styles: |-
+              :host {
+                flex: 0 0 var(--feature-height, 42px);
+              }
         styles: |-
           {% set is_off = not is_state('[[light_entity]]', 'on') %}
           {% set nl = '[[night_light_entity]]' %}
@@ -132,33 +142,30 @@ light_smart_control:
               display: none !important;
             {% endif %}
           }
-          custom-feature-button {
-            flex: 0 0 var(--feature-height, 42px);
-          }
-          custom-feature-slider:nth-of-type(2),
-          custom-feature-button:nth-of-type(2) {
+          custom-feature-slider:nth-of-type(2) {
             position: absolute;
             visibility: hidden;
+          }
+          custom-feature-button:nth-of-type(2) {
             display: none;
           }
-
           {% if is_adapt %}
-            custom-feature-button:nth-of-type(1) {
-              display: none !important;
-            }
+          custom-feature-button:nth-of-type(1) {
+            display: none !important;
+          }
           {% else %}
-            :host([mode='temp']) custom-feature-slider:nth-of-type(1),
-            :host([mode='temp']) custom-feature-button:nth-of-type(1) {
-              position: absolute;
-              visibility: hidden;
-              display: none;
-            }
-            :host([mode='temp']) custom-feature-slider:nth-of-type(2) {
-              position: relative;
-              visibility: visible;
-            }
-            :host([mode='temp']) custom-feature-button:nth-of-type(2) {
-              position: static;
-              display: flex;
-            }
+          :host([mode='temp']) custom-feature-slider:nth-of-type(1) {
+            position: absolute;
+            visibility: hidden;
+          }
+          :host([mode='temp']) custom-feature-slider:nth-of-type(2) {
+            position: relative;
+            visibility: visible;
+          }
+          :host([mode='temp']) custom-feature-button:nth-of-type(1) {
+            display: none;
+          }
+          :host([mode='temp']) custom-feature-button:nth-of-type(2) {
+            display: flex;
+          }
           {% endif %}
