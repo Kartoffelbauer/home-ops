@@ -181,18 +181,12 @@ light_smart_control:
 projector_smart_control:
   default:
     - entity: none
-    - name: none
+    - name: Projector
     - icon: mdi:projector
   card:
     type: tile
     entity: "[[entity]]"
-    name: >-
-      {% set name = '[[name]]' %}
-      {% if name and name | lower != 'none' %}
-        {{ name }}
-      {% else %}
-        {{ state_attr('[[entity]]', 'friendly_name') | default('Projector', true) }}
-      {% endif %}
+    name: "[[name]]"
     icon: "[[icon]]"
     tap_action:
       action: toggle
