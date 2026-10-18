@@ -23,7 +23,7 @@ light_smart_control:
       {% if name and name | lower != 'none' %}
         {{ name }}
       {% else %}
-        {{ state_attr('[[light_entity]]', 'friendly_name') | default('Light', true) }}
+        {{ state_attr('[[light_entity]]', 'friendly_name') | default('Licht', true) }}
       {% endif %}
     secondary: >-
       {% set nl = '[[night_light_entity]]' %}
@@ -181,7 +181,7 @@ light_smart_control:
 projector_smart_control:
   default:
     - entity: none
-    - name: Projector
+    - name: Beamer
     - icon: mdi:projector
   card:
     type: tile
