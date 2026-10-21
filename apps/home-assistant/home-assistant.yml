@@ -78,7 +78,6 @@ services:
     command:
       # Integration extensions
       - "integration=3dg1luk43/ha_washdata:${HOMEASSISTANT_EXT_HA_WASHDATA_DOCKER_TAG:-latest}"
-      - "integration=agoberg85/home-assistant-simple-tabs:${HOMEASSISTANT_EXT_HOME_ASSISTANT_SIMPLE_TABS_DOCKER_TAG:-latest}"
       - "integration=basnijholt/adaptive-lighting:${HOMEASSISTANT_EXT_ADAPTIVE_LIGHTING_DOCKER_TAG:-latest}"
       - "integration=DAB-LABS/HAIR:${HOMEASSISTANT_EXT_HAIR_DOCKER_TAG:-latest}"
       - "integration=edmogeor/hass-ga-manual-ui:${HOMEASSISTANT_EXT_HASS_GA_MANUAL_UI_DOCKER_TAG:-latest}"
@@ -87,6 +86,7 @@ services:
       # - "integration=frenck/spook:${HOMEASSISTANT_EXT_SPOOK_DOCKER_TAG:-latest}" # Used for cleaning up old entities, but not needed for normal operation
 
       # Frontend extensions
+      - "frontend=agoberg85/home-assistant-simple-tabs:${HOMEASSISTANT_EXT_HOME_ASSISTANT_SIMPLE_TABS_DOCKER_TAG:-latest}"
       - "frontend=brunosabot/streamline-card:${HOMEASSISTANT_EXT_STREAMLINE_CARD_DOCKER_TAG:-latest}"
       - "frontend=francois-le-ko4la/lovelace-entity-progress-card:${HOMEASSISTANT_EXT_LOVELACE_ENTITY_PROGRESS_CARD_DOCKER_TAG:-latest}"
       - "frontend=homeassistant-extras/room-summary-card:${HOMEASSISTANT_EXT_ROOM_SUMMARY_CARD_DOCKER_TAG:-latest}"
