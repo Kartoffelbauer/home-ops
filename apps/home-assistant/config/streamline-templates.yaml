@@ -1,11 +1,11 @@
 # ==============================================================================
 # Template: light_smart_control
 # Description: Reusable Mushroom light card with inline Custom Features sliders
-#              for brightness and color temperature (Kelvin). Hides manual
-#              temperature controls while Adaptive Lighting is active, and
-#              collapses all sliders when the light is off, an optional Night
-#              Light mode binary sensor is active, or a parent card sets
-#              --light-smart-control-hide-controls: 1 (e.g. expander header).
+#              for brightness and color temperature (Kelvin). Dynamically hides
+#              manual temperature controls when Adaptive Lighting is active, and
+#              collapses all sliders when the light is off, when an optional
+#              Night Light mode binary sensor is active, or when a parent sets
+#              --light-smart-control-controls-display: none (e.g. open expander).
 # ==============================================================================
 
 light_smart_control:
