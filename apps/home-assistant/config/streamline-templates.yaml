@@ -10,7 +10,6 @@
 light_smart_control:
   default:
     - name: none
-    - icon: mdi:lightbulb
     - light_entity: none
     - night_light_entity: none
     - adaptive_color_entity: none
@@ -37,7 +36,8 @@ light_smart_control:
       {% else %}
         Nicht verfügbar
       {% endif %}
-    icon: "[[icon]]"
+    icon: >-
+      {{ 'mdi:lightbulb-on' if is_state('[[light_entity]]', 'on') else 'mdi:lightbulb-off' }}
     color: >-
       {% if is_state('[[light_entity]]', 'on') %}
         {% set rgb = state_attr('[[light_entity]]', 'rgb_color') %}
