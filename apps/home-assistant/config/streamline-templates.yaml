@@ -5,7 +5,8 @@
 #              manual temperature controls when Adaptive Lighting is active, and
 #              collapses all sliders when the light is off, when an optional
 #              Night Light mode binary sensor is active, or when a parent sets
-#              --light-smart-control-controls-display: none (e.g. open expander).
+#              the flag --light-smart-control-hide-controls: 1 (e.g. the header
+#              of an expanded expander card).
 # ==============================================================================
 
 light_smart_control:
@@ -38,7 +39,7 @@ light_smart_control:
         Nicht verfügbar
       {% endif %}
     icon: >-
-      {{ 'mdi:lightbulb-on' if is_state('[[light_entity]]', 'on') else 'mdi:lightbulb-off' }}
+      {{ 'mdi:lightbulb' if is_state('[[light_entity]]', 'on') else 'mdi:lightbulb-off' }}
     color: >-
       {% if is_state('[[light_entity]]', 'on') %}
         {% set rgb = state_attr('[[light_entity]]', 'rgb_color') %}
@@ -137,12 +138,15 @@ light_smart_control:
           {% set adapt = '[[adaptive_color_entity]]' %}
           {% set is_adapt = adapt not in ['none', ''] and is_state(adapt, 'on') %}
 
+          {% if is_off or is_nl %}
           :host {
-            {% if is_off or is_nl %}
+            display: none !important;
+          }
+          {% endif %}
+          @container style(--light-smart-control-hide-controls: 1) {
+            :host {
               display: none !important;
-            {% else %}
-              display: var(--light-smart-control-controls-display, flex);
-            {% endif %}
+            }
           }
           custom-feature-slider:nth-of-type(2) {
             position: absolute;
