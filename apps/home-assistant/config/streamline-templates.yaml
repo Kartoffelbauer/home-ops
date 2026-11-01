@@ -227,6 +227,7 @@ media_player_smart_control:
              ns.off | join(', ') ~ ' aus' if ns.off else ''
            ] | select | join(' · ') }}
       {% endif %}
+    icon: "[[icon]]"
     color: >-
       {{ '[[color]]' if states('[[media_player_entity]]') not in ['off', 'standby', 'unavailable', 'unknown'] }}
     tap_action:
