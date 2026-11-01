@@ -178,22 +178,44 @@ light_smart_control:
 
 
 # ==============================================================================
-# Template: projector_smart_control
-# Description: Reusable Home Assistant Tile card for stateless IR beamers/projectors.
-#              Features an inline volume spinbox with repeat-on-hold, toggles power
-#              on tap, and dynamically collapses the entire feature row when off.
+# Template: media_player_smart_control
+# Description: Reusable Mushroom card for media player groups. Toggles the whole
+#              group on tap, lists running members by name, and shows an inline
+#              volume spinbox that collapses when off or when a parent sets
+#              --hide-inline-controls: 1.
 # ==============================================================================
 
-projector_smart_control:
+media_player_smart_control:
   default:
-    - entity: none
-    - name: Beamer
-    - icon: mdi:projector
+    - name: none
+    - icon: mdi:play-box-multiple-outline
+    - color: deep-purple
+    - media_player_entity: none
+    - member_entities: none
   card:
-    type: tile
-    entity: "[[entity]]"
-    name: "[[name]]"
+    type: custom:mushroom-template-card
+    entity: "[[media_player_entity]]"
+    primary: >-
+      {% set name = '[[name]]' %}
+      {% if name and name | lower != 'none' %}
+        {{ name }}
+      {% else %}
+        {{ state_attr('[[media_player_entity]]', 'friendly_name') | default('Medien', true) }}
+      {% endif %}
+    secondary: >-
+      {% set inactive = ['off', 'standby', 'unavailable', 'unknown'] %}
+      {% set members = '[[member_entities]]' %}
+      {% if members == 'none' %}
+        {{ 'Aus' if is_state('[[media_player_entity]]', inactive) else 'An' }}
+      {% else %}
+        {% set active = members.split(',') | map('trim')
+             | reject('is_state', inactive)
+             | map('state_attr', 'friendly_name') | list %}
+        {{ active | join(', ') if active else 'Aus' }}
+      {% endif %}
     icon: "[[icon]]"
+    color: >-
+      {{ '[[color]]' if not is_state('[[media_player_entity]]', ['off', 'standby', 'unavailable', 'unknown']) }}
     tap_action:
       action: toggle
     icon_tap_action:
@@ -203,7 +225,7 @@ projector_smart_control:
       - type: custom:service-call
         entries:
           - type: spinbox
-            entity_id: "[[entity]]"
+            entity_id: "[[media_player_entity]]"
             icon: mdi:volume-high
             decrement:
               icon: mdi:volume-minus
@@ -211,7 +233,7 @@ projector_smart_control:
                 action: perform-action
                 perform_action: media_player.volume_down
                 target:
-                  entity_id: "[[entity]]"
+                  entity_id: "[[media_player_entity]]"
               hold_action:
                 action: repeat
                 repeat_delay: 250
@@ -221,13 +243,18 @@ projector_smart_control:
                 action: perform-action
                 perform_action: media_player.volume_up
                 target:
-                  entity_id: "[[entity]]"
+                  entity_id: "[[media_player_entity]]"
               hold_action:
                 action: repeat
                 repeat_delay: 250
         styles: |-
           :host {
-            {% if not is_state('[[entity]]', 'on') %}
+            {% if states('[[media_player_entity]]') in ['off', 'standby', 'unavailable', 'unknown'] %}
             display: none !important;
             {% endif %}
+          }
+          @container style(--hide-inline-controls: 1) {
+            :host {
+              display: none !important;
+            }
           }
