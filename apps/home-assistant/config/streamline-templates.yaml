@@ -5,8 +5,8 @@
 #              manual temperature controls when Adaptive Lighting is active, and
 #              collapses all sliders when the light is off, when an optional
 #              Night Light mode binary sensor is active, or when a parent sets
-#              the flag --light-smart-control-hide-controls: 1 (e.g. the header
-#              of an expanded expander card).
+#              --hide-inline-controls: 1 (e.g. the header of an expanded
+#              expander card).
 # ==============================================================================
 
 light_smart_control:
@@ -143,7 +143,7 @@ light_smart_control:
             display: none !important;
           }
           {% endif %}
-          @container style(--light-smart-control-hide-controls: 1) {
+          @container style(--hide-inline-controls: 1) {
             :host {
               display: none !important;
             }
