@@ -261,6 +261,11 @@ media_player_smart_control:
               hold_action:
                 action: repeat
                 repeat_delay: 250
+            styles: |-
+              :host {
+                max-width: 128px;
+                margin-inline-start: auto;
+              }
         styles: |-
           :host {
             {% if states('[[media_player_entity]]') in ['off', 'standby', 'unavailable', 'unknown'] %}
