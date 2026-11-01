@@ -188,7 +188,7 @@ light_smart_control:
 media_player_smart_control:
   default:
     - name: none
-    - icon: mdi:play-box-multiple-outline
+    - icon: mdi:play-box-outline
     - color: deep-purple
     - media_player_entity: none
     - member_entities: none
