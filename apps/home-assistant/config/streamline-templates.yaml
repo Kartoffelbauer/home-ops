@@ -180,16 +180,16 @@ light_smart_control:
 # ==============================================================================
 # Template: media_player_smart_control
 # Description: Reusable Mushroom card for media player groups. Toggles the whole
-#              group on tap, lists running members by name, and shows an inline
-#              volume spinbox that collapses when off or when a parent sets
-#              --hide-inline-controls: 1.
+#              group on tap, lists all members grouped by state (optional custom
+#              names), and shows an inline volume spinbox that collapses when
+#              off or when a parent sets --hide-inline-controls: 1.
 # ==============================================================================
 
 media_player_smart_control:
   default:
     - name: none
     - icon: mdi:play-box-outline
-    - color: blue
+    - color: deep-purple
     - media_player_entity: none
     - member_entities: none
     - member_names: none
@@ -207,14 +207,16 @@ media_player_smart_control:
       {% set inactive = ['off', 'standby', 'unavailable', 'unknown'] %}
       {% set members = '[[member_entities]]' %}
       {% if members == 'none' %}
-        {{ 'Aus' if is_state('[[media_player_entity]]', inactive) else 'An' }}
+        {{ 'Aus' if states('[[media_player_entity]]') in inactive else 'An' }}
       {% else %}
         {% set custom = '[[member_names]]' %}
         {% set names = custom.split(',') | map('trim') | list if custom != 'none' else [] %}
         {% set ns = namespace(on=[], off=[]) %}
-        {% for id in members.split(',') | map('trim') %}
-          {% set label = names[loop.index0] | default(state_attr(id, 'friendly_name'), true) %}
-          {% if is_state(id, inactive) %}
+        {% for id in members.split(',') | map('trim') | select %}
+          {% set label = names[loop.index0]
+               | default(state_attr(id, 'friendly_name'), true)
+               | default(id, true) %}
+          {% if states(id) in inactive %}
             {% set ns.off = ns.off + [label] %}
           {% else %}
             {% set ns.on = ns.on + [label] %}
@@ -225,9 +227,8 @@ media_player_smart_control:
              ns.off | join(', ') ~ ' aus' if ns.off else ''
            ] | select | join(' · ') }}
       {% endif %}
-    icon: "[[icon]]"
     color: >-
-      {{ '[[color]]' if not is_state('[[media_player_entity]]', ['off', 'standby', 'unavailable', 'unknown']) }}
+      {{ '[[color]]' if states('[[media_player_entity]]') not in ['off', 'standby', 'unavailable', 'unknown'] }}
     tap_action:
       action: toggle
     icon_tap_action:
