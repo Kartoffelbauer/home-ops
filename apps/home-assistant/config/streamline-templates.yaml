@@ -189,9 +189,10 @@ media_player_smart_control:
   default:
     - name: none
     - icon: mdi:play-box-outline
-    - color: deep-purple
+    - color: blue
     - media_player_entity: none
     - member_entities: none
+    - member_names: none
   card:
     type: custom:mushroom-template-card
     entity: "[[media_player_entity]]"
@@ -208,15 +209,21 @@ media_player_smart_control:
       {% if members == 'none' %}
         {{ 'Aus' if is_state('[[media_player_entity]]', inactive) else 'An' }}
       {% else %}
-        {% set ids = members.split(',') | map('trim') | list %}
-        {% set on = ids | reject('is_state', inactive)
-             | map('state_attr', 'friendly_name') | list %}
-        {% set off = ids | select('is_state', inactive)
-             | map('state_attr', 'friendly_name') | list %}
-        {% set parts = [] %}
-        {% if on %}{% set parts = parts + [on | join(', ') ~ ' an'] %}{% endif %}
-        {% if off %}{% set parts = parts + [off | join(', ') ~ ' aus'] %}{% endif %}
-        {{ parts | join(' · ') }}
+        {% set custom = '[[member_names]]' %}
+        {% set names = custom.split(',') | map('trim') | list if custom != 'none' else [] %}
+        {% set ns = namespace(on=[], off=[]) %}
+        {% for id in members.split(',') | map('trim') %}
+          {% set label = names[loop.index0] | default(state_attr(id, 'friendly_name'), true) %}
+          {% if is_state(id, inactive) %}
+            {% set ns.off = ns.off + [label] %}
+          {% else %}
+            {% set ns.on = ns.on + [label] %}
+          {% endif %}
+        {% endfor %}
+        {{ [
+             ns.on | join(', ') ~ ' an' if ns.on else '',
+             ns.off | join(', ') ~ ' aus' if ns.off else ''
+           ] | select | join(' · ') }}
       {% endif %}
     icon: "[[icon]]"
     color: >-
