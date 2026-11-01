@@ -208,10 +208,15 @@ media_player_smart_control:
       {% if members == 'none' %}
         {{ 'Aus' if is_state('[[media_player_entity]]', inactive) else 'An' }}
       {% else %}
-        {% set active = members.split(',') | map('trim')
-             | reject('is_state', inactive)
+        {% set ids = members.split(',') | map('trim') | list %}
+        {% set on = ids | reject('is_state', inactive)
              | map('state_attr', 'friendly_name') | list %}
-        {{ active | join(', ') if active else 'Aus' }}
+        {% set off = ids | select('is_state', inactive)
+             | map('state_attr', 'friendly_name') | list %}
+        {% set parts = [] %}
+        {% if on %}{% set parts = parts + [on | join(', ') ~ ' an'] %}{% endif %}
+        {% if off %}{% set parts = parts + [off | join(', ') ~ ' aus'] %}{% endif %}
+        {{ parts | join(' · ') }}
       {% endif %}
     icon: "[[icon]]"
     color: >-
