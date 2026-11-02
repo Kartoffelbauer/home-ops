@@ -191,7 +191,6 @@ media_player_smart_control:
     - icon: mdi:play-box-outline
     - color: deep-purple
     - media_player_entity: none
-    - member_entities: none
     - member_names: none
   card:
     type: custom:mushroom-template-card
@@ -205,14 +204,14 @@ media_player_smart_control:
       {% endif %}
     secondary: >-
       {% set inactive = ['off', 'standby', 'unavailable', 'unknown'] %}
-      {% set members = '[[member_entities]]' %}
-      {% if members == 'none' %}
+      {% set members = state_attr('[[media_player_entity]]', 'entity_id') or [] %}
+      {% if members | count == 0 %}
         {{ 'Aus' if states('[[media_player_entity]]') in inactive else 'An' }}
       {% else %}
         {% set custom = '[[member_names]]' %}
         {% set names = custom.split(',') | map('trim') | list if custom != 'none' else [] %}
         {% set ns = namespace(on=[], off=[]) %}
-        {% for id in members.split(',') | map('trim') | select %}
+        {% for id in members %}
           {% set label = names[loop.index0]
                | default(state_attr(id, 'friendly_name'), true)
                | default(id, true) %}
@@ -247,7 +246,9 @@ media_player_smart_control:
                 action: perform-action
                 perform_action: media_player.volume_down
                 target:
-                  entity_id: "[[media_player_entity]]"
+                  entity_id: >-
+                    {{ (state_attr('[[media_player_entity]]', 'entity_id')
+                        or ['[[media_player_entity]]']) | first }}
               hold_action:
                 action: repeat
                 repeat_delay: 250
@@ -257,7 +258,9 @@ media_player_smart_control:
                 action: perform-action
                 perform_action: media_player.volume_up
                 target:
-                  entity_id: "[[media_player_entity]]"
+                  entity_id: >-
+                    {{ (state_attr('[[media_player_entity]]', 'entity_id')
+                        or ['[[media_player_entity]]']) | first }}
               hold_action:
                 action: repeat
                 repeat_delay: 250
