@@ -60,11 +60,13 @@ light_smart_control:
       perform_action: "[[toggle_script_entity]]"
       data:
         light_entity: "[[light_entity]]"
+        remember_brightness: true
     icon_tap_action:
       action: perform-action
       perform_action: "[[toggle_script_entity]]"
       data:
         light_entity: "[[light_entity]]"
+        remember_brightness: true
     features_position: inline
     features:
       - type: custom:service-call
