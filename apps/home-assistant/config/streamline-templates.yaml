@@ -183,9 +183,8 @@ light_smart_control:
 # Template: media_player_smart_control
 # Description: Reusable Mushroom card for media player groups. Toggles the whole
 #              group on tap (IR-safe via optional toggle_script_entity), lists
-#              all members grouped by state (optional custom names), and shows
-#              an inline volume spinbox that collapses when off or when a
-#              parent sets --hide-inline-controls: 1.
+#              all members grouped by state, and shows optional inline volume
+#              and source controls, switchable via an icon when both are shown.
 # ==============================================================================
 
 media_player_smart_control:
@@ -196,6 +195,8 @@ media_player_smart_control:
     - media_player_entity: none
     - member_names: none
     - toggle_script_entity: none
+    - show_volume: true
+    - show_source: false
   card:
     type: custom:mushroom-template-card
     entity: "[[media_player_entity]]"
@@ -248,7 +249,9 @@ media_player_smart_control:
       - type: custom:service-call
         entries:
           - type: spinbox
-            entity_id: "[[media_player_entity]]"
+            entity_id: >-
+              {{ (state_attr('[[media_player_entity]]', 'entity_id')
+                  or ['[[media_player_entity]]']) | first }}
             icon: mdi:volume-high
             decrement:
               icon: mdi:volume-minus
@@ -279,14 +282,76 @@ media_player_smart_control:
                 max-width: 128px;
                 margin-inline-start: auto;
               }
+          - type: dropdown
+            entity_id: >-
+              {{ (state_attr('[[media_player_entity]]', 'entity_id')
+                  or ['[[media_player_entity]]']) | first }}
+            value_attribute: source
+            icon: mdi:video-input-hdmi
+          - type: button
+            entity_id: "[[media_player_entity]]"
+            icon: mdi:video-input-hdmi
+            tap_action:
+              action: fire-dom-event
+              event_type: cf-attributes
+              attributes:
+                mode: [source]
+            styles: |-
+              :host {
+                flex: 0 0 var(--feature-height, 42px);
+              }
+          - type: button
+            entity_id: "[[media_player_entity]]"
+            icon: mdi:volume-high
+            tap_action:
+              action: fire-dom-event
+              event_type: cf-attributes
+              attributes:
+                mode: [source]
+            styles: |-
+              :host {
+                flex: 0 0 var(--feature-height, 42px);
+              }
         styles: |-
+          {% set inactive = ['off', 'standby', 'unavailable', 'unknown'] %}
+          {% set target = (state_attr('[[media_player_entity]]', 'entity_id')
+                           or ['[[media_player_entity]]']) | first %}
+          {% set is_off = states('[[media_player_entity]]') in inactive %}
+          {% set has_volume = '[[show_volume]]' | lower == 'true' %}
+          {% set has_source = '[[show_source]]' | lower == 'true'
+             and states(target) not in inactive %}
+
+          {% if is_off or not (has_volume or has_source) %}
           :host {
-            {% if states('[[media_player_entity]]') in ['off', 'standby', 'unavailable', 'unknown'] %}
             display: none !important;
-            {% endif %}
           }
+          {% endif %}
           @container style(--hide-inline-controls: 1) {
             :host {
               display: none !important;
             }
           }
+          custom-feature-dropdown,
+          custom-feature-button {
+            display: none;
+          }
+          {% if has_source and not has_volume %}
+          custom-feature-spinbox {
+            display: none;
+          }
+          custom-feature-dropdown {
+            display: flex;
+          }
+          {% elif has_source and has_volume %}
+          custom-feature-button:nth-of-type(1) {
+            display: flex;
+          }
+          :host([mode='source']) custom-feature-spinbox,
+          :host([mode='source']) custom-feature-button:nth-of-type(1) {
+            display: none;
+          }
+          :host([mode='source']) custom-feature-dropdown,
+          :host([mode='source']) custom-feature-button:nth-of-type(2) {
+            display: flex;
+          }
+          {% endif %}
