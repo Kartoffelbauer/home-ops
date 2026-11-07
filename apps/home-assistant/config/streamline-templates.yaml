@@ -193,8 +193,8 @@ media_player_smart_control:
     - icon: mdi:play-box-outline
     - color: deep-purple
     - media_player_entity: none
-    - member_names: none
     - toggle_script_entity: none
+    - member_labels: none
     - show_volume: true
     - show_source: false
   card:
@@ -213,7 +213,7 @@ media_player_smart_control:
       {% if members | count == 0 %}
         {{ 'Aus' if states('[[media_player_entity]]') in inactive else 'An' }}
       {% else %}
-        {% set custom = '[[member_names]]' %}
+        {% set custom = '[[member_labels]]' %}
         {% set names = custom.split(',') | map('trim') | list if custom != 'none' else [] %}
         {% set ns = namespace(on=[], off=[]) %}
         {% for id in members %}
