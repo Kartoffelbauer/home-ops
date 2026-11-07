@@ -195,7 +195,7 @@ media_player_smart_control:
     - media_player_entity: none
     - toggle_script_entity: none
     - member_labels: none
-    - show_volume: true
+    - show_volume: false
     - show_source: false
   card:
     type: custom:mushroom-template-card
