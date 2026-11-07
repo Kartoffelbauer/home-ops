@@ -264,9 +264,7 @@ media_player_smart_control:
                 action: perform-action
                 perform_action: media_player.volume_down
                 target:
-                  entity_id: >-
-                    {{ (state_attr('[[media_player_entity]]', 'entity_id')
-                        or ['[[media_player_entity]]']) | first }}
+                  entity_id: "{{ (state_attr('[[media_player_entity]]', 'entity_id') or ['[[media_player_entity]]']) | first }}"
               hold_action:
                 action: repeat
                 repeat_delay: 250
@@ -276,9 +274,7 @@ media_player_smart_control:
                 action: perform-action
                 perform_action: media_player.volume_up
                 target:
-                  entity_id: >-
-                    {{ (state_attr('[[media_player_entity]]', 'entity_id')
-                        or ['[[media_player_entity]]']) | first }}
+                  entity_id: "{{ (state_attr('[[media_player_entity]]', 'entity_id') or ['[[media_player_entity]]']) | first }}"
               hold_action:
                 action: repeat
                 repeat_delay: 250
@@ -288,14 +284,15 @@ media_player_smart_control:
                 margin-inline-start: auto;
               }
           - type: dropdown
-            entity_id: >-
-              {{ ((state_attr('[[media_player_entity]]', 'entity_id')
-                   or ['[[media_player_entity]]']) | first)
-                 | replace('media_player.', 'select.') ~ '_source' }}
-            icon: mdi:video-input-hdmi
+            entity_id: "{{ ((state_attr('[[media_player_entity]]', 'entity_id') or ['[[media_player_entity]]']) | first) | replace('media_player.', 'select.') ~ '_source' }}"
+            icon: mdi:import
+            value_attribute: state
+            option_type: attribute
+            option_entity: "{{ ((state_attr('[[media_player_entity]]', 'entity_id') or ['[[media_player_entity]]']) | first) | replace('media_player.', 'select.') ~ '_source' }}"
+            option_attribute: options
           - type: button
             entity_id: "[[media_player_entity]]"
-            icon: mdi:video-input-hdmi
+            icon: mdi:import
             tap_action:
               action: fire-dom-event
               event_type: cf-attributes
