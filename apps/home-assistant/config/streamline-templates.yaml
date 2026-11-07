@@ -195,8 +195,8 @@ media_player_smart_control:
     - media_player_entity: none
     - toggle_script_entity: none
     - member_labels: none
-    - show_volume: false
-    - show_source: false
+    - show_volume_bool: false
+    - show_source_bool: false
   card:
     type: custom:mushroom-template-card
     entity: "[[media_player_entity]]"
@@ -214,10 +214,10 @@ media_player_smart_control:
         {{ 'Aus' if states('[[media_player_entity]]') in inactive else 'An' }}
       {% else %}
         {% set custom = '[[member_labels]]' %}
-        {% set names = custom.split(',') | map('trim') | list if custom != 'none' else [] %}
+        {% set labels = custom.split(',') | map('trim') | list if custom != 'none' else [] %}
         {% set ns = namespace(on=[], off=[]) %}
         {% for id in members %}
-          {% set label = names[loop.index0]
+          {% set label = labels[loop.index0]
                | default(state_attr(id, 'friendly_name'), true)
                | default(id, true) %}
           {% if states(id) in inactive %}
@@ -284,9 +284,9 @@ media_player_smart_control:
               }
           - type: dropdown
             entity_id: >-
-              {{ (state_attr('[[media_player_entity]]', 'entity_id')
-                  or ['[[media_player_entity]]']) | first }}
-            value_attribute: source
+              {{ ((state_attr('[[media_player_entity]]', 'entity_id')
+                   or ['[[media_player_entity]]']) | first)
+                 | replace('media_player.', 'select.') ~ '_source' }}
             icon: mdi:video-input-hdmi
           - type: button
             entity_id: "[[media_player_entity]]"
@@ -317,11 +317,9 @@ media_player_smart_control:
           {% set target = (state_attr('[[media_player_entity]]', 'entity_id')
                            or ['[[media_player_entity]]']) | first %}
           {% set is_off = states('[[media_player_entity]]') in inactive %}
-          {% set has_volume = '[[show_volume]]' | lower == 'true' %}
-          {% set has_source = '[[show_source]]' | lower == 'true'
              and states(target) not in inactive %}
 
-          {% if is_off or not (has_volume or has_source) %}
+          {% if is_off or not (show_volume_bool or show_source_bool) %}
           :host {
             display: none !important;
           }
@@ -335,14 +333,14 @@ media_player_smart_control:
           custom-feature-button {
             display: none;
           }
-          {% if has_source and not has_volume %}
+          {% if show_source_bool and not show_volume_bool %}
           custom-feature-spinbox {
             display: none;
           }
           custom-feature-dropdown {
             display: flex;
           }
-          {% elif has_source and has_volume %}
+          {% elif show_source_bool and show_volume_bool %}
           custom-feature-button:nth-of-type(1) {
             display: flex;
           }
