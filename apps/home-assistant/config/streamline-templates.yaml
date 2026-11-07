@@ -181,10 +181,15 @@ light_smart_control:
 
 # ==============================================================================
 # Template: media_player_smart_control
-# Description: Reusable Mushroom card for media player groups. Toggles the whole
-#              group on tap (IR-safe via optional toggle_script_entity), lists
-#              all members grouped by state, and shows optional inline volume
-#              and source controls, switchable via an icon when both are shown.
+# Description: Reusable Mushroom card for media players and media player groups
+#              with inline Custom Features controls for volume and source
+#              selection. Toggles the whole group on tap (IR-safe via an
+#              optional toggle script), lists all members grouped by state,
+#              and switches between volume and source via an icon when both
+#              are enabled. Collapses all controls when the player is off, and
+#              hides the source dropdown when the device is off, or when a
+#              parent sets --hide-inline-controls: 1 (e.g. the header of an
+#              expanded expander card).
 # ==============================================================================
 
 media_player_smart_control:
