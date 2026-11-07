@@ -1,0 +1,139 @@
+# ==============================================================================
+# Package: smart_power_control
+# Description: Toggles or explicitly switches (on / off) single devices or groups
+#              of any on/off-capable domain. Expands (nested) groups and only
+#              commands members whose state differs from the target, keeping
+#              IR devices with a single power-toggle code in sync.
+# ==============================================================================
+
+script:
+  smart_power_control:
+    alias: Smart Power Control
+    description: >-
+      Toggle or explicitly switch (on / off) single devices or groups of any
+      on/off-capable domain (media_player, light, switch, fan, ...). Groups,
+      including nested groups, are expanded to their members, and only members
+      whose state differs from the target get a command. This matters for
+      infrared devices with a single power-toggle code, where a redundant "off"
+      switches them on.
+    mode: queued
+    max: 10
+
+    fields:
+      device_entity:
+        name: Device Entity
+        description: >-
+          One or more devices or groups (e.g. a media_player group). Can also be
+          passed as the action target (entity_id), so the script is a drop-in
+          replacement for homeassistant.toggle.
+        selector:
+          entity:
+            multiple: true
+
+      target_state:
+        name: Target State
+        description: >-
+          toggle – decided per passed entity: if any member is on, every member
+          that is on is switched off; otherwise every member is switched on. For
+          a single device this just inverts its state. on – switch on only the
+          members that are off. off – switch off only the members that are on.
+          Members that are unavailable / unknown are never touched.
+        default: toggle
+        selector:
+          select:
+            options:
+              - toggle
+              - "on"
+              - "off"
+
+    variables:
+      off_states:
+        - "off"
+        - standby
+      skip_states:
+        - unavailable
+        - unknown
+      stagger_ms: 500
+
+      targets: >-
+        {# Accept device_entity or the action target, as a string or a list #}
+        {% set raw = device_entity | default(entity_id | default([])) %}
+        {{ [raw] if raw is string else raw | list }}
+
+      requested_state: >-
+        {# Normalize booleans coming from YAML (on/off -> true/false) #}
+        {% set s = target_state | default('toggle') | string | lower %}
+        {{ {'true': 'on', 'false': 'off'}.get(s, s) }}
+
+      invalid_entities: >-
+        {# Collect passed entities that do not resolve to any existing entity #}
+        {% set ns = namespace(bad=[]) %}
+        {% for target in targets if expand(target) | count == 0 %}
+          {% set ns.bad = ns.bad + [target] %}
+        {% endfor %}
+        {{ ns.bad }}
+
+      commands: >-
+        {# Build one turn_on / turn_off command per member that needs a change #}
+        {% set ns = namespace(items=[], seen=[]) %}
+        {% for target in targets %}
+          {% set members = expand(target) | rejectattr('state', 'in', skip_states) | list %}
+          {% set any_on = members | rejectattr('state', 'in', off_states) | list | count > 0 %}
+          {% set turn_on = requested_state == 'on'
+             or (requested_state == 'toggle' and not any_on) %}
+          {% for member in members if member.entity_id not in ns.seen %}
+            {% set ns.seen = ns.seen + [member.entity_id] %}
+            {% set is_on = member.state not in off_states %}
+            {% if turn_on != is_on %}
+              {% set ns.items = ns.items + [{
+                   'entity_id': member.entity_id,
+                   'action': member.domain ~ ('.turn_on' if turn_on else '.turn_off')}] %}
+            {% endif %}
+          {% endfor %}
+        {% endfor %}
+        {{ ns.items }}
+
+    sequence:
+      - if:
+          - condition: template
+            value_template: >-
+              {# Reject unsupported target states #}
+              {{ requested_state not in ['toggle', 'on', 'off'] }}
+        then:
+          - stop: "Invalid target_state (allowed: toggle, on, off)."
+            error: true
+
+      - if:
+          - condition: template
+            value_template: >-
+              {# Require at least one entity #}
+              {{ targets | count == 0 }}
+        then:
+          - stop: "No entity given (use device_entity or the action target)."
+            error: true
+
+      - if:
+          - condition: template
+            value_template: >-
+              {# Abort if any passed entity does not exist #}
+              {{ invalid_entities | count > 0 }}
+        then:
+          - stop: "Unknown entity / entities – see 'invalid_entities' in the trace."
+            error: true
+
+      - repeat:
+          for_each: "{{ commands }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: >-
+                    {# Stagger commands so IR blasters do not drop codes #}
+                    {{ repeat.index > 1 }}
+              then:
+                - delay:
+                    milliseconds: "{{ stagger_ms }}"
+
+            - action: "{{ repeat.item.action }}"
+              continue_on_error: true
+              target:
+                entity_id: "{{ repeat.item.entity_id }}"
