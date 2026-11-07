@@ -323,8 +323,10 @@ media_player_smart_control:
                            or ['[[media_player_entity]]']) | first %}
           {% set is_off = states('[[media_player_entity]]') in inactive %}
              and states(target) not in inactive %}
+          {% set has_volume = [[show_volume_bool]] %}
+          {% set has_source = [[show_source_bool]] and states(target) not in inactive %}
 
-          {% if is_off or not (show_volume_bool or show_source_bool) %}
+          {% if is_off or not (has_volume or has_source) %}
           :host {
             display: none !important;
           }
@@ -338,14 +340,14 @@ media_player_smart_control:
           custom-feature-button {
             display: none;
           }
-          {% if show_source_bool and not show_volume_bool %}
+          {% if has_source and not has_volume %}
           custom-feature-spinbox {
             display: none;
           }
           custom-feature-dropdown {
             display: flex;
           }
-          {% elif show_source_bool and show_volume_bool %}
+          {% elif has_source and has_volume %}
           custom-feature-button:nth-of-type(1) {
             display: flex;
           }
