@@ -254,9 +254,7 @@ media_player_smart_control:
       - type: custom:service-call
         entries:
           - type: spinbox
-            entity_id: >-
-              {{ (state_attr('[[media_player_entity]]', 'entity_id')
-                  or ['[[media_player_entity]]']) | first }}
+            entity_id: "{{ (state_attr('[[media_player_entity]]', 'entity_id') or ['[[media_player_entity]]']) | first }}"
             icon: mdi:volume-high
             decrement:
               icon: mdi:volume-minus
@@ -285,11 +283,19 @@ media_player_smart_control:
               }
           - type: dropdown
             entity_id: "{{ ((state_attr('[[media_player_entity]]', 'entity_id') or ['[[media_player_entity]]']) | first) | replace('media_player.', 'select.') ~ '_source' }}"
-            icon: mdi:import
             value_attribute: state
             option_type: attribute
             option_entity: "{{ ((state_attr('[[media_player_entity]]', 'entity_id') or ['[[media_player_entity]]']) | first) | replace('media_player.', 'select.') ~ '_source' }}"
             option_attribute: options
+            option_template:
+              label: "{{ option | safe }}"
+              tap_action:
+                action: perform-action
+                perform_action: select.select_option
+                target:
+                  entity_id: "{{ config.entity }}"
+                data:
+                  option: "{{ option | safe }}"
           - type: button
             entity_id: "[[media_player_entity]]"
             icon: mdi:import
@@ -319,7 +325,6 @@ media_player_smart_control:
           {% set target = (state_attr('[[media_player_entity]]', 'entity_id')
                            or ['[[media_player_entity]]']) | first %}
           {% set is_off = states('[[media_player_entity]]') in inactive %}
-             and states(target) not in inactive %}
           {% set has_volume = [[show_volume_bool]] %}
           {% set has_source = [[show_source_bool]] and states(target) not in inactive %}
 
