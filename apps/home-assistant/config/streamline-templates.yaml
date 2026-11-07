@@ -182,9 +182,10 @@ light_smart_control:
 # ==============================================================================
 # Template: media_player_smart_control
 # Description: Reusable Mushroom card for media player groups. Toggles the whole
-#              group on tap, lists all members grouped by state (optional custom
-#              names), and shows an inline volume spinbox that collapses when
-#              off or when a parent sets --hide-inline-controls: 1.
+#              group on tap (IR-safe via optional toggle_script_entity), lists
+#              all members grouped by state (optional custom names), and shows
+#              an inline volume spinbox that collapses when off or when a
+#              parent sets --hide-inline-controls: 1.
 # ==============================================================================
 
 media_player_smart_control:
@@ -194,6 +195,7 @@ media_player_smart_control:
     - color: deep-purple
     - media_player_entity: none
     - member_names: none
+    - toggle_script_entity: none
   card:
     type: custom:mushroom-template-card
     entity: "[[media_player_entity]]"
@@ -232,9 +234,15 @@ media_player_smart_control:
     color: >-
       {{ '[[color]]' if states('[[media_player_entity]]') not in ['off', 'standby', 'unavailable', 'unknown'] }}
     tap_action:
-      action: toggle
+      action: perform-action
+      perform_action: "[[toggle_script_entity]]"
+      data:
+        device_entity: "[[media_player_entity]]"
     icon_tap_action:
-      action: toggle
+      action: perform-action
+      perform_action: "[[toggle_script_entity]]"
+      data:
+        device_entity: "[[media_player_entity]]"
     features_position: inline
     features:
       - type: custom:service-call
