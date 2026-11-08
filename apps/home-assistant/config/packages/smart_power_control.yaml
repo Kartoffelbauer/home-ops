@@ -87,6 +87,7 @@ script:
             {% if turn_on != is_on %}
               {% set ns.items = ns.items + [{
                    'entity_id': member.entity_id,
+                   'turn_on': turn_on,
                    'action': member.domain ~ ('.turn_on' if turn_on else '.turn_off')}] %}
             {% endif %}
           {% endfor %}
@@ -132,8 +133,15 @@ script:
               then:
                 - delay:
                     milliseconds: "{{ stagger_ms }}"
-
-            - action: "{{ repeat.item.action }}"
-              continue_on_error: true
-              target:
-                entity_id: "{{ repeat.item.entity_id }}"
+            - if:
+                - condition: template
+                  value_template: >-
+                    {# Re-check live state: another run may have switched it meanwhile #}
+                    {% set state = states(repeat.item.entity_id) %}
+                    {{ state not in skip_states
+                       and (state not in off_states) != repeat.item.turn_on }}
+              then:
+                - action: "{{ repeat.item.action }}"
+                  target:
+                    entity_id: "{{ repeat.item.entity_id }}"
+                  continue_on_error: true
