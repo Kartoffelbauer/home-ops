@@ -1,0 +1,59 @@
+# ==============================================================================
+# Package: outlet_aware_toggle
+# Description: Switches on a device's power outlet if it is off; otherwise
+#              toggles the device itself. Lets one tap target first restore
+#              power, then control the device.
+# ==============================================================================
+
+script:
+  outlet_aware_toggle:
+    alias: Outlet Aware Toggle
+    description: >-
+      Switches on a device's power outlet if it is off; otherwise toggles the
+      device itself. Lets one tap target first restore power, then control the
+      device.
+    mode: single
+
+    fields:
+      outlet_entity:
+        name: Outlet Entity
+        description: Switch that powers the device.
+        required: true
+        selector:
+          entity:
+            domain: switch
+
+      device_entity:
+        name: Device Entity
+        description: Device to toggle once it has power.
+        required: true
+        selector:
+          entity: {}
+
+    variables:
+      outlet: "{{ outlet_entity | default('') }}"
+      device: "{{ device_entity | default('') }}"
+
+    sequence:
+      - if:
+          - condition: template
+            value_template: >-
+              {# Require both entities #}
+              {{ outlet == '' or device == '' }}
+        then:
+          - stop: "Both outlet_entity and device_entity are required."
+            error: true
+
+      - if:
+          - condition: template
+            value_template: >-
+              {# Restore power first if the outlet is off #}
+              {{ is_state(outlet, 'off') }}
+        then:
+          - action: switch.turn_on
+            target:
+              entity_id: "{{ outlet }}"
+        else:
+          - action: homeassistant.toggle
+            target:
+              entity_id: "{{ device }}"
