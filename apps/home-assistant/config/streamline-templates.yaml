@@ -288,6 +288,7 @@ media_player_smart_control:
             option_entity: "{{ ((state_attr('[[media_player_entity]]', 'entity_id') or ['[[media_player_entity]]']) | first) | replace('media_player.', 'select.') ~ '_source' }}"
             option_attribute: options
             option_template:
+              icon: "{{ state_attr(config.entity | replace('select.', 'button.') ~ 's_' ~ (option | lower | replace(' ', '_')), 'icon') or 'mdi:import' }}"
               tap_action:
                 action: perform-action
                 perform_action: select.select_option
