@@ -28,7 +28,8 @@ script:
         description: Device to toggle once it has power.
         required: true
         selector:
-          entity: {}
+          entity:
+            multiple: false
 
     variables:
       outlet: "{{ outlet_entity | default('') }}"
