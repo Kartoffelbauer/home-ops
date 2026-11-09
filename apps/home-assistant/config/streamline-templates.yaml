@@ -275,6 +275,11 @@ climate_smart_control:
                 entity_id: "[[climate_entity]]"
               data:
                 temperature: "{{ value | float }}"
+            styles: |-
+              :host {
+                max-width: 128px;
+                margin-inline-start: auto;
+              }
           - type: button
             entity_id: "[[climate_entity]]"
             icon: "{{ {'auto': 'mdi:thermostat-auto', 'heat': 'mdi:fire', 'cool': 'mdi:snowflake', 'fan_only': 'mdi:fan', 'dry': 'mdi:water-percent', 'heat_cool': 'mdi:sun-snowflake-variant'}[states('[[climate_entity]]')] or 'mdi:thermostat' }}"
@@ -285,8 +290,7 @@ climate_smart_control:
                 view: [modes]
             styles: |-
               :host {
-                max-width: 128px;
-                margin-inline-start: auto;
+                flex: 0 0 var(--feature-height, 42px);
               }
           - type: selector
             entity_id: "[[climate_entity]]"
@@ -304,6 +308,11 @@ climate_smart_control:
               styles: |-
                 :host {
                   --color: var(--state-climate-{{ option }}-color, var(--state-inactive-color));
+                }
+                :host(.selected) {
+                  --opacity: 0.2 !important;
+                  --hover-opacity: 0.3 !important;
+                  --icon-color: var(--color);
                 }
           - type: button
             entity_id: "[[climate_entity]]"
