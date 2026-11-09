@@ -184,16 +184,18 @@ light_smart_control:
 # Description: Reusable Mushroom climate card with an inline Custom Features row
 #              that mirrors the mushroom-climate-card. The row toggles between a
 #              target temperature spinbox and an HVAC mode selector via the
-#              button on its right. All controls are collapsed when the device
-#              is off or unavailable, or when a parent sets
-#              --hide-inline-controls: 1 (e.g. the header of an expanded
-#              expander card).
+#              button on its right. The selector never shows off and also skips
+#              any modes listed in hidden_hvac_modes (comma separated). All
+#              controls are collapsed when the device is off or unavailable, or
+#              when a parent sets --hide-inline-controls: 1 (e.g. the header of
+#              an expanded expander card).
 # ==============================================================================
 
 climate_smart_control:
   default:
     - name: none
     - climate_entity: none
+    - hidden_hvac_modes: ""
   card:
     type: custom:mushroom-template-card
     entity: "[[climate_entity]]"
@@ -230,7 +232,7 @@ climate_smart_control:
         'fan_only': 'cyan',
         'dry': 'amber',
         'heat_cool': 'purple'
-      }.get(states('[[climate_entity]]'), 'disabled') }}
+      }.get(states('[[climate_entity]]'), '') }}
     tap_action:
       action: toggle
     icon_tap_action:
@@ -295,7 +297,7 @@ climate_smart_control:
           - type: selector
             entity_id: "[[climate_entity]]"
             option_type: template
-            options_template: "{{ state_attr('[[climate_entity]]', 'hvac_modes') | reject('equalto', 'off') | join(',') }}"
+            options_template: "{{ (state_attr('[[climate_entity]]', 'hvac_modes') or []) | difference(['off'].concat(('[[hidden_hvac_modes]]' | replace(' ', '')).split(','))) | join(',') }}"
             option_template:
               icon: "{{ {'auto': 'mdi:thermostat-auto', 'heat': 'mdi:fire', 'cool': 'mdi:snowflake', 'fan_only': 'mdi:fan', 'dry': 'mdi:water-percent', 'heat_cool': 'mdi:sun-snowflake-variant'}[option] or 'mdi:thermostat' }}"
               tap_action:
