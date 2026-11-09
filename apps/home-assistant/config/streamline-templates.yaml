@@ -285,7 +285,8 @@ climate_smart_control:
                 view: [modes]
             styles: |-
               :host {
-                flex: 0 0 var(--feature-height, 42px);
+                max-width: 128px;
+                margin-inline-start: auto;
               }
           - type: selector
             entity_id: "[[climate_entity]]"
