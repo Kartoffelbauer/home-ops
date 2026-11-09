@@ -371,6 +371,7 @@ climate_smart_control:
 media_player_smart_control:
   default:
     - name: none
+    - icon: auto
     - media_player_entity: none
     - toggle_script_entity: homeassistant.toggle
     - member_labels: none
@@ -411,7 +412,10 @@ media_player_smart_control:
            ] | select | join(' · ') }}
       {% endif %}
     icon: >-
-      {% if state_attr('[[media_player_entity]]', 'entity_id') %}
+      {% set icon = '[[icon]]' %}
+      {% if icon not in ['none', 'auto', ''] %}
+        {{ icon }}
+      {% elif state_attr('[[media_player_entity]]', 'entity_id') %}
         mdi:play-box-multiple-outline
       {% else %}
         mdi:play-box-outline
