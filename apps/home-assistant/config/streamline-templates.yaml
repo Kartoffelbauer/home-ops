@@ -179,206 +179,168 @@ light_smart_control:
           {% endif %}
 
 
-  # ==============================================================================
-  # Template: climate_smart_control
-  # Description: Reusable Mushroom climate card with an inline Custom Features row
-  #              that mirrors the mushroom-climate-card. The row toggles between a
-  #              target temperature spinbox and an HVAC mode selector via the
-  #              button on its right. All controls are collapsed when the device
-  #              is off or unavailable, or when a parent sets
-  #              --hide-inline-controls: 1 (e.g. the header of an expanded
-  #              expander card).
-  # ==============================================================================
+# ==============================================================================
+# Template: climate_smart_control
+# Description: Reusable Mushroom climate card with an inline Custom Features row
+#              that mirrors the mushroom-climate-card. The row toggles between a
+#              target temperature spinbox and an HVAC mode selector via the
+#              button on its right. All controls are collapsed when the device
+#              is off or unavailable, or when a parent sets
+#              --hide-inline-controls: 1 (e.g. the header of an expanded
+#              expander card).
+# ==============================================================================
 
-  climate_smart_control:
-    default:
-      - name: none
-      - climate_entity: none
-    card:
-      type: custom:mushroom-template-card
-      entity: "[[climate_entity]]"
-      primary: >-
-        {% set name = '[[name]]' %}
-        {% if name and name | lower != 'none' %}
-          {{ name }}
-        {% else %}
-          {{ state_attr('[[climate_entity]]', 'friendly_name') | default('Klima', true) }}
-        {% endif %}
-      secondary: >-
-        {% set modes = {
-          'auto': 'Automatisch',
-          'heat': 'Heizen',
-          'cool': 'Kühlen',
-          'fan_only': 'Lüften',
-          'dry': 'Entfeuchten',
-          'heat_cool': 'Heizen/Kühlen',
-          'off': 'Aus'
-        } %}
-        {% set mode = states('[[climate_entity]]') %}
-        {% set current = state_attr('[[climate_entity]]', 'current_temperature') %}
-        {% if mode in modes %}
-          {{ modes[mode] }}{{ ' · ' ~ current ~ ' °C' if current is not none }}
-        {% else %}
-          Nicht verfügbar
-        {% endif %}
-      icon: mdi:air-conditioner
-      color: >-
-        {{ {
-          'auto': 'green',
-          'heat': 'deep-orange',
-          'cool': 'blue',
-          'fan_only': 'cyan',
-          'dry': 'amber',
-          'heat_cool': 'purple'
-        }.get(states('[[climate_entity]]'), 'disabled') }}
-      tap_action:
-        action: toggle
-      icon_tap_action:
-        action: toggle
-      hold_action:
-        action: fire-dom-event
-        browser_mod:
-          service: sequence
-          data:
-            sequence:
-              - service: browser_mod.close_popup
-              - service: browser_mod.more_info
-                data:
-                  entity: "[[climate_entity]]"
-      icon_hold_action:
-        action: fire-dom-event
-        browser_mod:
-          service: sequence
-          data:
-            sequence:
-              - service: browser_mod.close_popup
-              - service: browser_mod.more_info
-                data:
-                  entity: "[[climate_entity]]"
-      features_position: inline
-      features:
-        - type: custom:service-call
-          entries:
-            - type: spinbox
-              entity_id: "[[climate_entity]]"
-              value_attribute: temperature
-              unit_of_measurement: °C
-              label: "{{ value }}{{ unit }}"
-              range:
-                - "{{ state_attr('[[climate_entity]]', 'min_temp') or 16 }}"
-                - "{{ state_attr('[[climate_entity]]', 'max_temp') or 31 }}"
-              step: "{{ state_attr('[[climate_entity]]', 'target_temp_step') or 1 }}"
+climate_smart_control:
+  default:
+    - name: none
+    - climate_entity: none
+  card:
+    type: custom:mushroom-template-card
+    entity: "[[climate_entity]]"
+    primary: >-
+      {% set name = '[[name]]' %}
+      {% if name and name | lower != 'none' %}
+        {{ name }}
+      {% else %}
+        {{ state_attr('[[climate_entity]]', 'friendly_name') | default('Klima', true) }}
+      {% endif %}
+    secondary: >-
+      {% set modes = {
+        'auto': 'Automatisch',
+        'heat': 'Heizen',
+        'cool': 'Kühlen',
+        'fan_only': 'Lüften',
+        'dry': 'Entfeuchten',
+        'heat_cool': 'Heizen/Kühlen',
+        'off': 'Aus'
+      } %}
+      {% set mode = states('[[climate_entity]]') %}
+      {% set current = state_attr('[[climate_entity]]', 'current_temperature') %}
+      {% if mode in modes %}
+        {{ modes[mode] }}{{ ' · ' ~ current ~ ' °C' if current is not none }}
+      {% else %}
+        Nicht verfügbar
+      {% endif %}
+    icon: mdi:air-conditioner
+    color: >-
+      {{ {
+        'auto': 'green',
+        'heat': 'deep-orange',
+        'cool': 'blue',
+        'fan_only': 'cyan',
+        'dry': 'amber',
+        'heat_cool': 'purple'
+      }.get(states('[[climate_entity]]'), 'disabled') }}
+    tap_action:
+      action: toggle
+    icon_tap_action:
+      action: toggle
+    hold_action:
+      action: fire-dom-event
+      browser_mod:
+        service: sequence
+        data:
+          sequence:
+            - service: browser_mod.close_popup
+            - service: browser_mod.more_info
+              data:
+                entity: "[[climate_entity]]"
+    icon_hold_action:
+      action: fire-dom-event
+      browser_mod:
+        service: sequence
+        data:
+          sequence:
+            - service: browser_mod.close_popup
+            - service: browser_mod.more_info
+              data:
+                entity: "[[climate_entity]]"
+    features_position: inline
+    features:
+      - type: custom:service-call
+        entries:
+          - type: spinbox
+            entity_id: "[[climate_entity]]"
+            value_attribute: temperature
+            unit_of_measurement: °C
+            label: "{{ value }}{{ unit }}"
+            range:
+              - "{{ state_attr('[[climate_entity]]', 'min_temp') or 16 }}"
+              - "{{ state_attr('[[climate_entity]]', 'max_temp') or 31 }}"
+            step: "{{ state_attr('[[climate_entity]]', 'target_temp_step') or 1 }}"
+            tap_action:
+              action: perform-action
+              perform_action: climate.set_temperature
+              target:
+                entity_id: "[[climate_entity]]"
+              data:
+                temperature: "{{ value | float }}"
+          - type: button
+            entity_id: "[[climate_entity]]"
+            icon: "{{ {'auto': 'mdi:thermostat-auto', 'heat': 'mdi:fire', 'cool': 'mdi:snowflake', 'fan_only': 'mdi:fan', 'dry': 'mdi:water-percent', 'heat_cool': 'mdi:sun-snowflake-variant'}[states('[[climate_entity]]')] or 'mdi:thermostat' }}"
+            tap_action:
+              action: fire-dom-event
+              event_type: cf-attributes
+              attributes:
+                view: [modes]
+            styles: |-
+              :host {
+                flex: 0 0 var(--feature-height, 42px);
+              }
+          - type: selector
+            entity_id: "[[climate_entity]]"
+            option_type: template
+            options_template: "{{ state_attr('[[climate_entity]]', 'hvac_modes') | reject('equalto', 'off') | join(',') }}"
+            option_template:
+              icon: "{{ {'auto': 'mdi:thermostat-auto', 'heat': 'mdi:fire', 'cool': 'mdi:snowflake', 'fan_only': 'mdi:fan', 'dry': 'mdi:water-percent', 'heat_cool': 'mdi:sun-snowflake-variant'}[option] or 'mdi:thermostat' }}"
               tap_action:
                 action: perform-action
-                perform_action: climate.set_temperature
+                perform_action: climate.set_hvac_mode
                 target:
                   entity_id: "[[climate_entity]]"
                 data:
-                  temperature: "{{ value | float }}"
-            - type: button
-              entity_id: "[[climate_entity]]"
-              icon: "{{ {'auto': 'mdi:thermostat-auto', 'heat': 'mdi:fire', 'cool': 'mdi:snowflake', 'fan_only': 'mdi:fan', 'dry': 'mdi:water-percent', 'heat_cool': 'mdi:sun-snowflake-variant'}[states('[[climate_entity]]')] or 'mdi:thermostat' }}"
-              tap_action:
-                action: fire-dom-event
-                event_type: cf-attributes
-                attributes:
-                  view: [modes]
+                  hvac_mode: "{{ option | safe }}"
               styles: |-
                 :host {
-                  flex: 0 0 var(--feature-height, 42px);
+                  --color: var(--state-climate-{{ option }}-color, var(--state-inactive-color));
                 }
-            - type: selector
-              entity_id: "[[climate_entity]]"
-              options:
-                - option: auto
-                  icon: mdi:thermostat-auto
-                  tap_action:
-                    action: perform-action
-                    perform_action: climate.set_hvac_mode
-                    target:
-                      entity_id: "[[climate_entity]]"
-                    data:
-                      hvac_mode: auto
-                  styles: |-
-                    :host {
-                      --color: var(--state-climate-auto-color);
-                    }
-                - option: heat
-                  icon: mdi:fire
-                  tap_action:
-                    action: perform-action
-                    perform_action: climate.set_hvac_mode
-                    target:
-                      entity_id: "[[climate_entity]]"
-                    data:
-                      hvac_mode: heat
-                  styles: |-
-                    :host {
-                      --color: var(--state-climate-heat-color);
-                    }
-                - option: cool
-                  icon: mdi:snowflake
-                  tap_action:
-                    action: perform-action
-                    perform_action: climate.set_hvac_mode
-                    target:
-                      entity_id: "[[climate_entity]]"
-                    data:
-                      hvac_mode: cool
-                  styles: |-
-                    :host {
-                      --color: var(--state-climate-cool-color);
-                    }
-                - option: fan_only
-                  icon: mdi:fan
-                  tap_action:
-                    action: perform-action
-                    perform_action: climate.set_hvac_mode
-                    target:
-                      entity_id: "[[climate_entity]]"
-                    data:
-                      hvac_mode: fan_only
-                  styles: |-
-                    :host {
-                      --color: var(--state-climate-fan_only-color);
-                    }
-            - type: button
-              entity_id: "[[climate_entity]]"
-              icon: mdi:thermometer
-              tap_action:
-                action: fire-dom-event
-                event_type: cf-attributes
-                attributes:
-                  view: [modes]
-              styles: |-
-                :host {
-                  flex: 0 0 var(--feature-height, 42px);
-                }
-          styles: |-
-            {% set is_off = states('[[climate_entity]]') in ['off', 'unavailable', 'unknown'] %}
+          - type: button
+            entity_id: "[[climate_entity]]"
+            icon: mdi:thermometer
+            tap_action:
+              action: fire-dom-event
+              event_type: cf-attributes
+              attributes:
+                view: [modes]
+            styles: |-
+              :host {
+                flex: 0 0 var(--feature-height, 42px);
+              }
+        styles: |-
+          {% set is_off = states('[[climate_entity]]') in ['off', 'unavailable', 'unknown'] %}
 
-            {% if is_off %}
+          {% if is_off %}
+          :host {
+            display: none !important;
+          }
+          {% endif %}
+          @container style(--hide-inline-controls: 1) {
             :host {
               display: none !important;
             }
-            {% endif %}
-            @container style(--hide-inline-controls: 1) {
-              :host {
-                display: none !important;
-              }
-            }
-            custom-feature-selector,
-            custom-feature-button:nth-of-type(2) {
-              display: none;
-            }
-            :host([view='modes']) custom-feature-spinbox,
-            :host([view='modes']) custom-feature-button:nth-of-type(1) {
-              display: none;
-            }
-            :host([view='modes']) custom-feature-selector,
-            :host([view='modes']) custom-feature-button:nth-of-type(2) {
-              display: flex;
-            }
+          }
+          custom-feature-selector,
+          custom-feature-button:nth-of-type(2) {
+            display: none;
+          }
+          :host([view='modes']) custom-feature-spinbox,
+          :host([view='modes']) custom-feature-button:nth-of-type(1) {
+            display: none;
+          }
+          :host([view='modes']) custom-feature-selector,
+          :host([view='modes']) custom-feature-button:nth-of-type(2) {
+            display: flex;
+          }
 
 
 # ==============================================================================
