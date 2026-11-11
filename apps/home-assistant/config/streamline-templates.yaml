@@ -579,7 +579,6 @@ status_chips:
     - washing_machine_entity: sensor.none
   card:
     type: custom:mushroom-chips-card
-    alignment: start
     alignment_javascript: >-
       return [variables.weather_entity, variables.home_entity].every((entity) => [undefined, '', 'sensor.none'].includes(entity)) ? 'start' : 'center';
     chips:
@@ -679,7 +678,6 @@ status_chips:
       - type: conditional
         conditions:
           - condition: state
-            entity: sensor.none
             entity_javascript: >-
               return String(variables.climate_entities).split(',')[0].trim();
             state_not: unavailable
@@ -722,9 +720,8 @@ status_chips:
                       entity: "[[power_entity]]"
           hold_action:
             action: none
-      - type: spacer
-        type_javascript: >-
-          return [variables.weather_entity, variables.home_entity].every((entity) => [undefined, '', 'sensor.none'].includes(entity)) ? 'spacer' : 'conditional';
+      - type_javascript: >-
+          return [variables.weather_entity, variables.home_entity].every((entity) => [undefined, '', 'none'].includes(entity)) ? 'spacer' : 'conditional';
         conditions:
           - condition: screen
             media_query: not all
