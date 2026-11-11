@@ -566,21 +566,21 @@ media_player_smart_control:
 
 status_chips:
   default:
-    - weather_entity: none
-    - home_entity: none
-    - lights_entity: none
-    - outlets_entity: none
-    - media_entity: none
-    - climate_entities: none
-    - power_entity: none
-    - temperature_entity: none
-    - humidity_entity: none
-    - dishwasher_entity: none
-    - washing_machine_entity: none
+    - weather_entity: sensor.none
+    - home_entity: sensor.none
+    - lights_entity: sensor.none
+    - outlets_entity: sensor.none
+    - media_entity: sensor.none
+    - climate_entities: sensor.none
+    - power_entity: sensor.none
+    - temperature_entity: sensor.none
+    - humidity_entity: sensor.none
+    - dishwasher_entity: sensor.none
+    - washing_machine_entity: sensor.none
   card:
     type: custom:mushroom-chips-card
     alignment_javascript: >-
-      return [variables.weather_entity, variables.home_entity].every((entity) => [undefined, '', 'none'].includes(entity)) ? 'start' : 'center';
+      return [variables.weather_entity, variables.home_entity].every((entity) => [undefined, '', 'sensor.none'].includes(entity)) ? 'start' : 'center';
     chips:
       - type: conditional
         conditions:
