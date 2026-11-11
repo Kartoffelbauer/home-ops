@@ -721,7 +721,7 @@ status_chips:
           hold_action:
             action: none
       - type_javascript: >-
-          return [variables.weather_entity, variables.home_entity].every((entity) => [undefined, '', 'none'].includes(entity)) ? 'spacer' : 'conditional';
+          return [variables.weather_entity, variables.home_entity].every((entity) => [undefined, '', 'sensor.none'].includes(entity)) ? 'spacer' : 'conditional';
         conditions:
           - condition: screen
             media_query: not all
