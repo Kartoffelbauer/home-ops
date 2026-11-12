@@ -853,13 +853,13 @@ status_chips:
 status_tiles:
   default:
     - lights_entity: sensor.none
-    - lights_popup_id: lights
+    - lights_popup_id_override: lights
     - outlets_entity: sensor.none
-    - outlets_popup_id: outlets
+    - outlets_popup_id_override: outlets
     - climate_entities: sensor.none
-    - climate_popup_id: air-conditionals
+    - climate_popup_id_override: air-conditionals
     - media_entity: sensor.none
-    - media_popup_id: media
+    - media_popup_id_override: media
   card:
     type: horizontal-stack
     cards:
@@ -875,7 +875,7 @@ status_tiles:
           browser_mod:
             service: browser_mod.popup
             data:
-              popup_card_id: "[[lights_popup_id]]"
+              popup_card_id: "[[lights_popup_id_override]]"
       - type: custom:mushroom-template-card
         entity: "[[outlets_entity]]"
         primary: Steckdosen
@@ -888,7 +888,7 @@ status_tiles:
           browser_mod:
             service: browser_mod.popup
             data:
-              popup_card_id: "[[outlets_popup_id]]"
+              popup_card_id: "[[outlets_popup_id_override]]"
       - type: custom:mushroom-template-card
         primary: Klima
         secondary: >-
@@ -906,7 +906,7 @@ status_tiles:
           browser_mod:
             service: browser_mod.popup
             data:
-              popup_card_id: "[[climate_popup_id]]"
+              popup_card_id: "[[climate_popup_id_override]]"
       - type: custom:mushroom-template-card
         entity: "[[media_entity]]"
         primary: Medien
@@ -919,4 +919,4 @@ status_tiles:
           browser_mod:
             service: browser_mod.popup
             data:
-              popup_card_id: "[[media_popup_id]]"
+              popup_card_id: "[[media_popup_id_override]]"
