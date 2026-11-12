@@ -578,7 +578,7 @@ status_chips:
     - dishwasher_entity: sensor.none
     - washing_machine_entity: sensor.none
   card:
-    type: horizontal-stack
+    type: vertical-stack
     cards:
       - type: custom:mushroom-chips-card
         alignment_javascript: >-
