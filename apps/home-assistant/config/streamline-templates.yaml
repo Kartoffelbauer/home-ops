@@ -208,7 +208,7 @@ climate_smart_control:
       {% endif %}
     secondary: >-
       {% set modes = {
-        'auto': 'Automatisch',
+        'auto': 'Auto',
         'heat': 'Heizen',
         'cool': 'Kühlen',
         'fan_only': 'Lüften',
@@ -557,8 +557,8 @@ media_player_smart_control:
 #              the dominant HVAC mode), the total power draw, temperature and
 #              humidity with comfort colors, and dishwasher and washing machine
 #              timers. Every chip is optional and only rendered when its entity
-#              is set and available; timers also hide while unknown. With
-#              weather or home entity (overview) the row is centered, otherwise
+#              is set and available; timers also hide while unknown. With a
+#              weather or home zone entity (overview) the row is centered, else
 #              (room headers) it starts left and a spacer right aligns the
 #              climate chips. All chips except the counters open the more-info
 #              dialog as a browser_mod popup.
@@ -567,22 +567,22 @@ media_player_smart_control:
 status_chips:
   default:
     - weather_entity: sensor.none
-    - home_entity: sensor.none
-    - lights_entity: sensor.none
-    - outlets_entity: sensor.none
-    - media_entity: sensor.none
+    - home_zone_entity: sensor.none
+    - active_lights_count_entity: sensor.none
+    - active_outlets_count_entity: sensor.none
+    - active_media_count_entity: sensor.none
     - climate_entities: sensor.none
     - power_entity: sensor.none
     - temperature_entity: sensor.none
     - humidity_entity: sensor.none
-    - dishwasher_entity: sensor.none
-    - washing_machine_entity: sensor.none
+    - dishwasher_remaining_entity: sensor.none
+    - washing_machine_remaining_entity: sensor.none
   card:
     type: vertical-stack
     cards:
       - type: custom:mushroom-chips-card
         alignment_javascript: >-
-          return [variables.weather_entity, variables.home_entity].every((entity) => [undefined, '', 'sensor.none'].includes(entity)) ? 'start' : 'center';
+          return [variables.weather_entity, variables.home_zone_entity].every((entity) => [undefined, '', 'sensor.none'].includes(entity)) ? 'start' : 'center';
         chips:
           - type: conditional
             conditions:
@@ -609,17 +609,17 @@ status_chips:
           - type: conditional
             conditions:
               - condition: state
-                entity: "[[home_entity]]"
+                entity: "[[home_zone_entity]]"
                 state_not: unavailable
             chip:
               type: template
-              entity: "[[home_entity]]"
+              entity: "[[home_zone_entity]]"
               content: >-
-                {% set count = states('[[home_entity]]') | int(0) %}
+                {% set count = states('[[home_zone_entity]]') | int(0) %}
                 {{ count if count > 0 else 'Away' }}
               icon: >-
-                {{ 'mdi:home-account' if states('[[home_entity]]') | int(0) > 0 else 'mdi:home-outline' }}
-              icon_color: "{{ 'green' if states('[[home_entity]]') | int(0) > 0 else 'disabled' }}"
+                {{ 'mdi:home-account' if states('[[home_zone_entity]]') | int(0) > 0 else 'mdi:home-outline' }}
+              icon_color: "{{ 'green' if states('[[home_zone_entity]]') | int(0) > 0 else 'disabled' }}"
               tap_action:
                 action: fire-dom-event
                 browser_mod:
@@ -629,20 +629,20 @@ status_chips:
                       - service: browser_mod.close_popup
                       - service: browser_mod.more_info
                         data:
-                          entity: "[[home_entity]]"
+                          entity: "[[home_zone_entity]]"
               hold_action:
                 action: none
           - type: conditional
             conditions:
               - condition: state
-                entity: "[[lights_entity]]"
+                entity: "[[active_lights_count_entity]]"
                 state_not: unavailable
             chip:
               type: template
-              entity: "[[lights_entity]]"
-              content: "{{ states('[[lights_entity]]') }}"
+              entity: "[[active_lights_count_entity]]"
+              content: "{{ states('[[active_lights_count_entity]]') }}"
               icon: mdi:lightbulb
-              icon_color: "{{ 'amber' if states('[[lights_entity]]') | int(0) > 0 else 'disabled' }}"
+              icon_color: "{{ 'amber' if states('[[active_lights_count_entity]]') | int(0) > 0 else 'disabled' }}"
               tap_action:
                 action: none
               hold_action:
@@ -650,14 +650,14 @@ status_chips:
           - type: conditional
             conditions:
               - condition: state
-                entity: "[[outlets_entity]]"
+                entity: "[[active_outlets_count_entity]]"
                 state_not: unavailable
             chip:
               type: template
-              entity: "[[outlets_entity]]"
-              content: "{{ states('[[outlets_entity]]') }}"
+              entity: "[[active_outlets_count_entity]]"
+              content: "{{ states('[[active_outlets_count_entity]]') }}"
               icon: mdi:power-plug
-              icon_color: "{{ 'blue' if states('[[outlets_entity]]') | int(0) > 0 else 'disabled' }}"
+              icon_color: "{{ 'blue' if states('[[active_outlets_count_entity]]') | int(0) > 0 else 'disabled' }}"
               tap_action:
                 action: none
               hold_action:
@@ -665,14 +665,14 @@ status_chips:
           - type: conditional
             conditions:
               - condition: state
-                entity: "[[media_entity]]"
+                entity: "[[active_media_count_entity]]"
                 state_not: unavailable
             chip:
               type: template
-              entity: "[[media_entity]]"
-              content: "{{ states('[[media_entity]]') }}"
+              entity: "[[active_media_count_entity]]"
+              content: "{{ states('[[active_media_count_entity]]') }}"
               icon: mdi:play-box-multiple
-              icon_color: "{{ 'deep-purple' if states('[[media_entity]]') | int(0) > 0 else 'disabled' }}"
+              icon_color: "{{ 'deep-purple' if states('[[active_media_count_entity]]') | int(0) > 0 else 'disabled' }}"
               tap_action:
                 action: none
               hold_action:
@@ -723,7 +723,7 @@ status_chips:
               hold_action:
                 action: none
           - type_javascript: >-
-              return [variables.weather_entity, variables.home_entity].every((entity) => [undefined, '', 'sensor.none'].includes(entity)) ? 'spacer' : 'conditional';
+              return [variables.weather_entity, variables.home_zone_entity].every((entity) => [undefined, '', 'sensor.none'].includes(entity)) ? 'spacer' : 'conditional';
             conditions:
               - condition: screen
                 media_query: not all
@@ -790,15 +790,15 @@ status_chips:
           - type: conditional
             conditions:
               - condition: state
-                entity: "[[dishwasher_entity]]"
+                entity: "[[dishwasher_remaining_entity]]"
                 state_not: unavailable
               - condition: state
-                entity: "[[dishwasher_entity]]"
+                entity: "[[dishwasher_remaining_entity]]"
                 state_not: unknown
             chip:
               type: template
-              entity: "[[dishwasher_entity]]"
-              content: "{{ states('[[dishwasher_entity]]', with_unit=True) }}"
+              entity: "[[dishwasher_remaining_entity]]"
+              content: "{{ states('[[dishwasher_remaining_entity]]', with_unit=True) }}"
               icon: mdi:dishwasher
               tap_action:
                 action: fire-dom-event
@@ -809,21 +809,21 @@ status_chips:
                       - service: browser_mod.close_popup
                       - service: browser_mod.more_info
                         data:
-                          entity: "[[dishwasher_entity]]"
+                          entity: "[[dishwasher_remaining_entity]]"
               hold_action:
                 action: none
           - type: conditional
             conditions:
               - condition: state
-                entity: "[[washing_machine_entity]]"
+                entity: "[[washing_machine_remaining_entity]]"
                 state_not: unavailable
               - condition: state
-                entity: "[[washing_machine_entity]]"
+                entity: "[[washing_machine_remaining_entity]]"
                 state_not: unknown
             chip:
               type: template
-              entity: "[[washing_machine_entity]]"
-              content: "{{ states('[[washing_machine_entity]]', with_unit=True) }}"
+              entity: "[[washing_machine_remaining_entity]]"
+              content: "{{ states('[[washing_machine_remaining_entity]]', with_unit=True) }}"
               icon: mdi:washing-machine
               tap_action:
                 action: fire-dom-event
@@ -834,7 +834,7 @@ status_chips:
                       - service: browser_mod.close_popup
                       - service: browser_mod.more_info
                         data:
-                          entity: "[[washing_machine_entity]]"
+                          entity: "[[washing_machine_remaining_entity]]"
               hold_action:
                 action: none
 
@@ -852,23 +852,23 @@ status_chips:
 
 status_tiles:
   default:
-    - lights_entity: sensor.none
+    - active_lights_count_entity: sensor.none
     - lights_popup_id_override: lights
-    - outlets_entity: sensor.none
+    - active_outlets_count_entity: sensor.none
     - outlets_popup_id_override: outlets
     - climate_entities: sensor.none
     - climate_popup_id_override: air-conditionals
-    - media_entity: sensor.none
+    - active_media_count_entity: sensor.none
     - media_popup_id_override: media
   card:
     type: horizontal-stack
     cards:
       - type: custom:mushroom-template-card
-        entity: "[[lights_entity]]"
+        entity: "[[active_lights_count_entity]]"
         primary: Lichter
-        secondary: "{{ states('[[lights_entity]]') | int(0) }} Aktiv"
+        secondary: "{{ states('[[active_lights_count_entity]]') | int(0) }} Aktiv"
         icon: mdi:lightbulb
-        color: "{{ 'amber' if states('[[lights_entity]]') | int(0) > 0 }}"
+        color: "{{ 'amber' if states('[[active_lights_count_entity]]') | int(0) > 0 }}"
         vertical: true
         tap_action:
           action: fire-dom-event
@@ -877,11 +877,11 @@ status_tiles:
             data:
               popup_card_id: "[[lights_popup_id_override]]"
       - type: custom:mushroom-template-card
-        entity: "[[outlets_entity]]"
+        entity: "[[active_outlets_count_entity]]"
         primary: Steckdosen
-        secondary: "{{ states('[[outlets_entity]]') | int(0) }} Aktiv"
+        secondary: "{{ states('[[active_outlets_count_entity]]') | int(0) }} Aktiv"
         icon: mdi:power-plug
-        color: "{{ 'blue' if states('[[outlets_entity]]') | int(0) > 0 }}"
+        color: "{{ 'blue' if states('[[active_outlets_count_entity]]') | int(0) > 0 }}"
         vertical: true
         tap_action:
           action: fire-dom-event
@@ -908,11 +908,11 @@ status_tiles:
             data:
               popup_card_id: "[[climate_popup_id_override]]"
       - type: custom:mushroom-template-card
-        entity: "[[media_entity]]"
+        entity: "[[active_media_count_entity]]"
         primary: Medien
-        secondary: "{{ states('[[media_entity]]') | int(0) }} Aktiv"
+        secondary: "{{ states('[[active_media_count_entity]]') | int(0) }} Aktiv"
         icon: mdi:play-box-multiple
-        color: "{{ 'deep-purple' if states('[[media_entity]]') | int(0) > 0 }}"
+        color: "{{ 'deep-purple' if states('[[active_media_count_entity]]') | int(0) > 0 }}"
         vertical: true
         tap_action:
           action: fire-dom-event
