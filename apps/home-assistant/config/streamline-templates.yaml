@@ -6,7 +6,8 @@
 #              collapses all sliders when the light is off, when an optional
 #              Night Light mode binary sensor is active, or when a parent sets
 #              --hide-inline-controls: 1 (e.g. the header of an expanded
-#              expander card).
+#              expander card). While the light is unavailable the icon is greyed
+#              out and an orange exclamation badge is shown.
 # ==============================================================================
 
 light_smart_control:
@@ -41,18 +42,24 @@ light_smart_control:
     icon: >-
       {{ 'mdi:lightbulb' if is_state('[[light_entity]]', 'on') else 'mdi:lightbulb-off' }}
     color: >-
-      {% if is_state('[[light_entity]]', 'on') %}
+      {% if is_state('[[light_entity]]', 'unavailable') %}
+        disabled
+      {% elif is_state('[[light_entity]]', 'on') %}
         {% set rgb = state_attr('[[light_entity]]', 'rgb_color') %}
         {{ 'rgb(' ~ rgb | join(',') ~ ')' if rgb else 'amber' }}
       {% endif %}
     badge_icon: >-
       {% set nl = '[[night_light_entity]]' %}
-      {% if nl not in ['none', ''] and is_state(nl, 'on') %}
+      {% if is_state('[[light_entity]]', 'unavailable') %}
+        mdi:exclamation-thick
+      {% elif nl not in ['none', ''] and is_state(nl, 'on') %}
         mdi:weather-night
       {% endif %}
     badge_color: >-
       {% set nl = '[[night_light_entity]]' %}
-      {% if nl not in ['none', ''] and is_state(nl, 'on') %}
+      {% if is_state('[[light_entity]]', 'unavailable') %}
+        orange
+      {% elif nl not in ['none', ''] and is_state(nl, 'on') %}
         deep-purple
       {% endif %}
     tap_action:
@@ -188,7 +195,8 @@ light_smart_control:
 #              any modes listed in hidden_hvac_modes (comma separated). All
 #              controls are collapsed when the device is off or unavailable, or
 #              when a parent sets --hide-inline-controls: 1 (e.g. the header of
-#              an expanded expander card).
+#              an expanded expander card). While the device is unavailable the
+#              icon is greyed out and an orange exclamation badge is shown.
 # ==============================================================================
 
 climate_smart_control:
@@ -231,8 +239,11 @@ climate_smart_control:
         'cool': 'blue',
         'fan_only': 'cyan',
         'dry': 'amber',
-        'heat_cool': 'purple'
+        'heat_cool': 'purple',
+        'unavailable': 'disabled'
       }.get(states('[[climate_entity]]'), '') }}
+    badge_icon: "{{ 'mdi:exclamation-thick' if is_state('[[climate_entity]]', 'unavailable') }}"
+    badge_color: "{{ 'orange' if is_state('[[climate_entity]]', 'unavailable') }}"
     tap_action:
       action: toggle
     icon_tap_action:
@@ -365,7 +376,8 @@ climate_smart_control:
 #              both are enabled. Collapses all controls when the player is off,
 #              and hides the source dropdown when the device is off, or when a
 #              parent sets --hide-inline-controls: 1 (e.g. the header of an
-#              expanded expander card).
+#              expanded expander card). While the player is unavailable the icon
+#              is greyed out and an orange exclamation badge is shown.
 # ==============================================================================
 
 media_player_smart_control:
@@ -421,7 +433,14 @@ media_player_smart_control:
         mdi:play-box-outline
       {% endif %}
     color: >-
-      {{ 'deep-purple' if states('[[media_player_entity]]') not in ['off', 'standby', 'unavailable', 'unknown'] }}
+      {% set state = states('[[media_player_entity]]') %}
+      {% if state == 'unavailable' %}
+        disabled
+      {% elif state not in ['off', 'standby', 'unknown'] %}
+        deep-purple
+      {% endif %}
+    badge_icon: "{{ 'mdi:exclamation-thick' if is_state('[[media_player_entity]]', 'unavailable') }}"
+    badge_color: "{{ 'orange' if is_state('[[media_player_entity]]', 'unavailable') }}"
     tap_action:
       action: perform-action
       perform_action: "[[toggle_script_entity]]"
@@ -847,7 +866,10 @@ status_chips:
 #              its kind is on. The air conditioner tile counts and colors from
 #              climate_entities (comma separated) by the dominant HVAC mode.
 #              Tapping a tile opens the browser_mod popup passed via its
-#              *_popup_id variable.
+#              *_popup_id variable. A tile whose source is unavailable gets an
+#              orange exclamation badge and a greyed out icon; the air
+#              conditioner tile shows the badge if any entity is unavailable and
+#              greys out only when all of them are.
 # ==============================================================================
 
 status_tiles:
@@ -868,7 +890,11 @@ status_tiles:
         primary: Lichter
         secondary: "{{ states('[[active_lights_count_entity]]') | int(0) }} Aktiv"
         icon: mdi:lightbulb
-        color: "{{ 'amber' if states('[[active_lights_count_entity]]') | int(0) > 0 }}"
+        color: >-
+          {{ 'disabled' if is_state('[[active_lights_count_entity]]', 'unavailable')
+             else 'amber' if states('[[active_lights_count_entity]]') | int(0) > 0 }}
+        badge_icon: "{{ 'mdi:exclamation-thick' if is_state('[[active_lights_count_entity]]', 'unavailable') }}"
+        badge_color: "{{ 'orange' if is_state('[[active_lights_count_entity]]', 'unavailable') }}"
         vertical: true
         tap_action:
           action: fire-dom-event
@@ -881,7 +907,11 @@ status_tiles:
         primary: Steckdosen
         secondary: "{{ states('[[active_outlets_count_entity]]') | int(0) }} Aktiv"
         icon: mdi:power-plug
-        color: "{{ 'blue' if states('[[active_outlets_count_entity]]') | int(0) > 0 }}"
+        color: >-
+          {{ 'disabled' if is_state('[[active_outlets_count_entity]]', 'unavailable')
+             else 'blue' if states('[[active_outlets_count_entity]]') | int(0) > 0 }}
+        badge_icon: "{{ 'mdi:exclamation-thick' if is_state('[[active_outlets_count_entity]]', 'unavailable') }}"
+        badge_color: "{{ 'orange' if is_state('[[active_outlets_count_entity]]', 'unavailable') }}"
         vertical: true
         tap_action:
           action: fire-dom-event
@@ -897,9 +927,19 @@ status_tiles:
         icon: mdi:air-conditioner
         color: >-
           {% set colors = {'heat': 'deep-orange', 'cool': 'blue', 'auto': 'green', 'dry': 'amber', 'fan_only': 'teal'} %}
+          {% set st = '[[climate_entities]]'.split(',') | map('trim') | map('states') | list %}
+          {% set active = colors | select('in', st) | list %}
+          {% if st | reject('eq', 'unavailable') | list | length == 0 %}
+            disabled
+          {% elif active %}
+            {{ colors[active[0]] }}
+          {% endif %}
+        badge_icon: >-
           {% set ids = '[[climate_entities]]'.split(',') | map('trim') | list %}
-          {% set active = colors | select('in', ids | map('states') | list) | list %}
-          {{ colors[active[0]] if active }}
+          {{ 'mdi:exclamation-thick' if 'unavailable' in ids | map('states') | list }}
+        badge_color: >-
+          {% set ids = '[[climate_entities]]'.split(',') | map('trim') | list %}
+          {{ 'orange' if 'unavailable' in ids | map('states') | list }}
         vertical: true
         tap_action:
           action: fire-dom-event
@@ -912,7 +952,11 @@ status_tiles:
         primary: Medien
         secondary: "{{ states('[[active_media_count_entity]]') | int(0) }} Aktiv"
         icon: mdi:play-box-multiple
-        color: "{{ 'deep-purple' if states('[[active_media_count_entity]]') | int(0) > 0 }}"
+        color: >-
+          {{ 'disabled' if is_state('[[active_media_count_entity]]', 'unavailable')
+             else 'deep-purple' if states('[[active_media_count_entity]]') | int(0) > 0 }}
+        badge_icon: "{{ 'mdi:exclamation-thick' if is_state('[[active_media_count_entity]]', 'unavailable') }}"
+        badge_color: "{{ 'orange' if is_state('[[active_media_count_entity]]', 'unavailable') }}"
         vertical: true
         tap_action:
           action: fire-dom-event
