@@ -25,7 +25,7 @@ light_smart_control:
       {% if name and name | lower != 'none' %}
         {{ name }}
       {% else %}
-        {{ state_attr('[[light_entity]]', 'friendly_name') | default('Licht', true) }}
+        {{ entity_name('[[light_entity]]', fallback=true) | default('Licht', true) }}
       {% endif %}
     secondary: >-
       {% set nl = '[[night_light_entity]]' %}
@@ -212,7 +212,7 @@ climate_smart_control:
       {% if name and name | lower != 'none' %}
         {{ name }}
       {% else %}
-        {{ state_attr('[[climate_entity]]', 'friendly_name') | default('Klima', true) }}
+        {{ entity_name('[[climate_entity]]', fallback=true) | default('Klima', true) }}
       {% endif %}
     secondary: >-
       {% set modes = {
@@ -397,7 +397,7 @@ media_player_smart_control:
       {% if name and name | lower != 'none' %}
         {{ name }}
       {% else %}
-        {{ state_attr('[[media_player_entity]]', 'friendly_name') | default('Medien', true) }}
+        {{ entity_name('[[media_player_entity]]', fallback=true) | default('Medien', true) }}
       {% endif %}
     secondary: >-
       {% set inactive = ['off', 'standby', 'unavailable', 'unknown'] %}
@@ -410,7 +410,7 @@ media_player_smart_control:
         {% set ns = namespace(on=[], off=[]) %}
         {% for id in members %}
           {% set label = labels[loop.index0]
-               | default(state_attr(id, 'friendly_name'), true)
+               | default(entity_name(id, fallback=true), true)
                | default(id, true) %}
           {% if states(id) in inactive %}
             {% set ns.off = ns.off + [label] %}
